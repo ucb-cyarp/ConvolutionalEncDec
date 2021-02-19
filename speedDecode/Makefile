@@ -15,17 +15,17 @@ INC=-I$(CONFIG_DIR) -I$(SRC_DIR) -I$(TEST_DIR)
 
 CONFIG_SRCS=convCodeParams.c
 SRCS=convEncode.c convHelpers.c viterbiDecoder.c
-TEST_SRCS=speedEncode.c
+TEST_SRCS=speedDecode.c
 
 CONFIG_OBJS=$(patsubst %.c,$(BUILD_DIR)/config/%.o,$(CONFIG_SRCS))
 OBJS=$(patsubst %.c,$(BUILD_DIR)/src/%.o,$(SRCS))
 TEST_OBJS=$(patsubst %.c,$(BUILD_DIR)/test/%.o,$(TEST_SRCS))
 
 #Production
-all: speedEncode
+all: speedDecode
 
-speedEncode: $(CONFIG_OBJS) $(OBJS) $(TEST_OBJS)
-	$(CC) $(CFLAGS) $(INC) $(DEFINES) -o speedEncode $(CONFIG_OBJS) $(OBJS) $(TEST_OBJS) $(LIB)
+speedDecode: $(CONFIG_OBJS) $(OBJS) $(TEST_OBJS)
+	$(CC) $(CFLAGS) $(INC) $(DEFINES) -o speedDecode $(CONFIG_OBJS) $(OBJS) $(TEST_OBJS) $(LIB)
 
 $(BUILD_DIR)/config/%.o: $(CONFIG_DIR)/%.c $(HDRS_FULLPATH) | $(BUILD_DIR)/config/
 	$(CC) $(CFLAGS) -c $(INC) $(DEFINES) -o $@ $<
@@ -49,7 +49,7 @@ $(BUILD_DIR)/test/: | $(BUILD_DIR)/
 	mkdir -p $@
 
 clean:
-	rm -f speedEncode
+	rm -f speedDecode
 	rm -rf build
 
 .PHONY: clean

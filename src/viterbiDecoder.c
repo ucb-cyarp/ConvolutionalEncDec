@@ -187,7 +187,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
 
         TRACEBACK_TYPE tb = state->traceBackCur[0];
 
-        printf("Traceback: 0x%lx\n", tb>>(S*k));
+        // printf("Traceback: 0x%lx\n", tb>>(S*k));
 
         //Exclude the final padding
         //The extra padding is S segments long

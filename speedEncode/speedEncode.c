@@ -72,8 +72,8 @@ void* testThread(void* arg){
         }
         bytesEncoded+=ENCODE_PKT_BYTE_LEN;
 
-        //TODO: Remove
-        assert(codedSegsReturned == 8*ENCODE_PKT_BYTE_LEN+S);
+        // //TODO: Remove
+        // assert(codedSegsReturned == 8*ENCODE_PKT_BYTE_LEN+S);
 
         //Need to make sure that the encode is not optimized out
         asm volatile(""
