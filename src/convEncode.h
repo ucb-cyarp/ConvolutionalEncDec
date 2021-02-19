@@ -1,7 +1,7 @@
 #ifndef _CONV_ENCODE_H_
 #define _CONV_ENCODE_H_
 
-#include "convCodePerams.h"
+#include "convCodeParams.h"
 #include "convHelpers.h"
 #include <stdbool.h>
 
@@ -53,12 +53,12 @@ void initConvEncoder(convEncoderState_t* state);
 /**
  * @brief Inserts a new input into the tappedDelay but does not adjust the cursor
  */
-inline void tappedDelayInsert(uint8_t* tappedDelay, int tappedDelayCursor, uint8_t input);
+void tappedDelayInsert(uint8_t* tappedDelay, int tappedDelayCursor, uint8_t input);
 
 /**
  * @brief Decements the cursor and wraps it arround as nessisary
  */
-inline void tappedDelayStep(int* tappedDelayCursor);
+void tappedDelayStep(int* tappedDelayCursor);
 
 /**
  * @brief Convolutionally encode packed data and emits coded segments (k bits each).  The data is sent in big endian order (the MSb is encoded first).
@@ -95,7 +95,7 @@ int convEnc(convEncoderState_t* state, uint8_t* uncoded, uint8_t* codedSegments,
  * 
  * @returns the output from the encoder
  */
-inline uint8_t computeEncOutputSegment(convEncoderState_t* state);
+uint8_t computeEncOutputSegment(convEncoderState_t* state);
 
 /**
  * Encodes a single k bit segment.  Useful for determining the expected values for different edges in the trellis
@@ -108,8 +108,5 @@ inline uint8_t computeEncOutputSegment(convEncoderState_t* state);
  */
 int convEncOneInput(convEncoderState_t* state, uint8_t bitsToShiftIn);
 
-//REMOVED:
-// @warning The uncoded array must be sized to be at leased a full block long, even if fewer than a block length of bytes are to be sent.  In that case, the remaining bytes in the array will be set to 0.  If reading from a file, this may mean allocating an extra long array.
-// Must be sized for a full block regardless of how many bytes are to be transmitted.
 
 #endif

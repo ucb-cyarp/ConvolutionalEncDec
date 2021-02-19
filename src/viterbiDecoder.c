@@ -9,7 +9,7 @@
 int viterbiConfigCheck(){
     if(sizeof(TRACEBACK_TYPE)*8 < TRACEBACK_LEN){
         printf("Traceback type cannot accomodate requested traceback length\n");
-        return 1;
+        exit(1);
     }
 
     return 0;
@@ -22,29 +22,20 @@ void viterbiInit(viterbiHardState_t* state){
     resetConvEncoder(&tmpEncoder);
     initConvEncoder(&tmpEncoder);
 
+    // printf("Decoder Trellis Init\n");
+
     for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
         for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
             //Use the convolutional encoder functions to derive what coded segment corresponds to each edge
             resetConvEncoder(&tmpEncoder);
             setConvEncoderState(&tmpEncoder, stateInd);
             state->edgeCodedBits[stateInd][edgeInd] = convEncOneInput(&tmpEncoder, edgeInd);
+            // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, state->edgeCodedBits[stateInd][edgeInd]);
         }
     }
 }
 
-/**
- * @brief Performs hard decision viterbi decoding of the specified code.
- * 
- * @note The code is expected to begin in the specified beginning state and end in the 0 state.
- *       Ending in the 
- * 
- * @param codedSegments an array of k bit codedSegments.  Each segment is in a seperate byte.  BLOCK_SIZE k-bit segements are passed at a time.
- * @param uncoded an array of uncoded bytes.  It is asumed the transmission is in big endian order.  Within a k bit segment, it is assumed it was sent in big endian order so simply appending the index (uncoded bits) corresponding to the edge can simply be shifted onto the word.  If the coded message is not a multiple of the block size, fill the block with 0's.
- * @param segmentsIn The number of coded segements being provided, which may be less than the block length.
- * @param last If true, returns the remaining traceback and resets after this iteration
- * @returns The number of uncoded bytes returned
- */ 
-int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* uncoded, int segmentsIn, bool last){
+int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_t* uncoded, int segmentsIn, bool last){
     //If the convolutional encoder forces the end of the message to be in the zero state, it allows us to
     //pad the last block with all zero codewords which, since the generating polynomials do not include nots,
     //would simply perpetuate the all zero path.  The metric of this path would not change.
@@ -74,12 +65,14 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
 
     for(int i = 0; i<segmentsIn; i++){
         uint8_t codedBits = codedSegments[i];
+        // printf("Coded Segment: %2d, Seg: 0x%x\n", i, codedBits);
 
         //Compute the edge metrics
         //Compute the hamming distance for each possible codeword segment
         uint8_t edgeMetrics[POW2(n)];
-        for(int j = 0; j<POW2(k); j++){
+        for(int j = 0; j<POW2(n); j++){
             edgeMetrics[j] = calcHammingDist(j, codedBits);
+            // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
         }
 
         //TODO: Implement Trellis Itteration
@@ -100,12 +93,14 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
                 int edgeMetricIdx = state->edgeCodedBits[srcNodeIdx][edgeOut];
 
                 pathMetrics[edgeIn] = srcMetric + edgeMetrics[edgeMetricIdx];
+
+                // printf("Path Metric [%2d][%2d] = %d\n", dstState, edgeIn, pathMetrics[edgeIn]);
             }
 
             //Find the minimum weight path metric
             int minPathEdgeInIdx = argminPathMetrics(pathMetrics);
             int minPathSrcNodeIdx = dstState/POW2(k) + minPathEdgeInIdx*POW2((S-1)*k);
-            newMetrics[dstState] = pathMetrics[minPathSrcNodeIdx];
+            newMetrics[dstState] = pathMetrics[minPathEdgeInIdx];
 
             //Copy the traceback from the minimum path and shift left by k
             //Append the bits corresponding to the edges coming into this node
@@ -114,6 +109,8 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
             newTB = newTB << k;
             newTB |= edgeOut;
             newTraceback[dstState] = newTB;
+
+            // printf("Min Path: %2d, Src Node: %2d Traceback: 0x%lx\n", minPathEdgeInIdx, minPathSrcNodeIdx, newTB);
         }
 
         //Update the state
@@ -121,9 +118,12 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
 
         (state->iteration)++;
 
+        for(int dstState = 0; dstState<NUM_STATES; dstState++){
+            printf("State: %2d, Metric: %2d, Traceback: 0x%lx\n", dstState, state->nodeMetricsCur[dstState], state->traceBackCur[dstState]);
+        }
+
         //Implement Traceback + Check if Traceback is Ready
         if(state->iteration >= TRACEBACK_LEN){
-
             //Make decision on traceback
             //Find current minimum node:
             int minNodeIdx = argminNodeMetrics(state->nodeMetricsCur);
@@ -143,6 +143,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
                 if(state->decodeCarryOverCount == 8){
                     uncoded[segmentsOut] = state->decodeCarryOver;
                     state->decodeCarryOverCount = 0;
+                    segmentsOut++;
                 }
             #else
                 //Need to handle the case when there may be spillover
@@ -168,6 +169,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
                     if(state->decodeCarryOverCount == 8){
                         uncoded[segmentsOut] = state->decodeCarryOver;
                         state->decodeCarryOverCount = 0;
+                        segmentsOut++;
                     }
                 }
             #endif
@@ -178,7 +180,6 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
     if(last){
         //Get the remaining K-1 segments of traceback
         //Note, there may not be a full K-1 segments of traceback if the message is short
-
         int remainingTraceback = (state->iteration < (TRACEBACK_LEN-1) ? state->iteration : TRACEBACK_LEN-1);
 
         //Since the state of the encoder was forced back to 0, we can just take the traceback from node 0
@@ -186,24 +187,28 @@ int viterbiDecoderHard(viterbiHardState_t* state, char* codedSegments, char* unc
 
         TRACEBACK_TYPE tb = state->traceBackCur[0];
 
+        printf("Traceback: 0x%lx\n", tb>>(S*k));
+
         //Exclude the final padding
         //The extra padding is S segments long
         //Shift out the last S segments of traceback
-        remainingTraceback = remainingTraceback >> (S*k);
+        tb = tb >> (S*k);
+        remainingTraceback -= S;
 
         for(int i = remainingTraceback-1; i>=0; i--){
-                state->decodeCarryOver = (state->decodeCarryOver << k) | ((tb >> (i*k))%POW2(k));
-                state->decodeCarryOverCount += k;
+            state->decodeCarryOver = (state->decodeCarryOver << k) | ((tb >> (i*k))%POW2(k));
+            state->decodeCarryOverCount += k;
 
-                if(state->decodeCarryOverCount == 8){
-                    uncoded[segmentsOut] = state->decodeCarryOver;
-                    state->decodeCarryOverCount = 0;
-                }
+            if(state->decodeCarryOverCount == 8){
+                uncoded[segmentsOut] = state->decodeCarryOver;
+                state->decodeCarryOverCount = 0;
+                segmentsOut++;
+            }
         }
 
         //TODO: Remove check
         if(state->decodeCarryOverCount != 0){
-            printf("After removing padding, decoded message should be in multiples of 8 bits");
+            printf("After removing padding, decoded message should be in multiples of 8 bits\n");
             exit(1);
         }
 
@@ -238,7 +243,7 @@ void resetViterbiDecoderHard(viterbiHardState_t* state){
     state->decodeCarryOverCount = 0;
 }
 
-inline uint8_t calcHammingDist(uint8_t a, uint8_t b){
+uint8_t calcHammingDist(uint8_t a, uint8_t b){
     uint8_t bitDifferences = a^b;
 
     //Need to count the number of ones in the bit differences
@@ -264,7 +269,7 @@ inline uint8_t calcHammingDist(uint8_t a, uint8_t b){
     return distance;
 }
 
-inline int argminPathMetrics(METRIC_TYPE *metrics){
+int argminPathMetrics(METRIC_TYPE *metrics){
     //There are 2^k paths to check
     //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
@@ -280,6 +285,8 @@ inline int argminPathMetrics(METRIC_TYPE *metrics){
 
         if(metrics[indA] <= metrics[indB]){
             workingInd[i] = indA;
+        }else{
+            workingInd[i] = indB;
         }
     }
 
@@ -292,6 +299,8 @@ inline int argminPathMetrics(METRIC_TYPE *metrics){
 
             if(metrics[indA] <= metrics[indB]){
                 workingInd[j] = indA;
+            }else{
+                workingInd[j] = indB;
             }
         }
     }
@@ -299,7 +308,7 @@ inline int argminPathMetrics(METRIC_TYPE *metrics){
     return workingInd[0];
 }
 
-inline int argminNodeMetrics(METRIC_TYPE *metrics){
+int argminNodeMetrics(METRIC_TYPE *metrics){
     //There are 2^k paths to check
     //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
@@ -315,6 +324,8 @@ inline int argminNodeMetrics(METRIC_TYPE *metrics){
 
         if(metrics[indA] <= metrics[indB]){
             workingInd[i] = indA;
+        }else{
+            workingInd[i] = indB;
         }
     }
 
@@ -327,6 +338,8 @@ inline int argminNodeMetrics(METRIC_TYPE *metrics){
 
             if(metrics[indA] <= metrics[indB]){
                 workingInd[j] = indA;
+            }else{
+                workingInd[j] = indB;
             }
         }
     }
@@ -334,7 +347,7 @@ inline int argminNodeMetrics(METRIC_TYPE *metrics){
     return workingInd[0];
 }
 
-inline void swapViterbiArrays(viterbiHardState_t* state){
+void swapViterbiArrays(viterbiHardState_t* state){
     METRIC_TYPE* tmpMetric = state->nodeMetricsCur;
     state->nodeMetricsCur = state->nodeMetricsNext;
     state->nodeMetricsNext = tmpMetric;

@@ -1,8 +1,9 @@
 #ifndef _VITERBI_DECODER_H_
 #define _VITERBI_DECODER_H_
 
-#include "convCodePerams.h"
+#include "convCodeParams.h"
 #include "convHelpers.h"
+#include <stdbool.h>
 
 //Note, this is being written in pure C to match
 //the output of Laminar and to avoid any extra C++
@@ -57,11 +58,25 @@ typedef struct{
 } viterbiHardState_t;
 
 /**
+ * @brief Performs hard decision viterbi decoding of the specified code.
+ * 
+ * @note The code is expected to begin in the specified beginning state and end in the 0 state.
+ *       Ending in the 
+ * 
+ * @param codedSegments an array of k bit codedSegments.  Each segment is in a seperate byte.  BLOCK_SIZE k-bit segements are passed at a time.
+ * @param uncoded an array of uncoded bytes.  It is asumed the transmission is in big endian order.  Within a k bit segment, it is assumed it was sent in big endian order so simply appending the index (uncoded bits) corresponding to the edge can simply be shifted onto the word.  If the coded message is not a multiple of the block size, fill the block with 0's.
+ * @param segmentsIn The number of coded segements being provided, which may be less than the block length.
+ * @param last If true, returns the remaining traceback and resets after this iteration
+ * @returns The number of uncoded bytes returned
+ */ 
+int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_t* uncoded, int segmentsIn, bool last);
+
+/**
  * @brief Swaps the node metric and traceback arrays.  Used to update both the node metrics and traceback arrays after a trellis iteration.
  * 
  * Using 2 buffers allows us to avoid copy operations from an intermediate array
  */
-inline void swapViterbiArrays(viterbiHardState_t* state);
+void swapViterbiArrays(viterbiHardState_t* state);
 
 int viterbiConfigCheck();
 
@@ -69,10 +84,10 @@ void viterbiInit(viterbiHardState_t* state);
 
 void resetViterbiDecoderHard(viterbiHardState_t* state);
 
-inline uint8_t calcHammingDist(uint8_t a, uint8_t b);
+uint8_t calcHammingDist(uint8_t a, uint8_t b);
 
-inline int argminPathMetrics(METRIC_TYPE *metrics);
+int argminPathMetrics(METRIC_TYPE *metrics);
 
-inline int argminNodeMetrics(METRIC_TYPE *metrics);
+int argminNodeMetrics(METRIC_TYPE *metrics);
 
 #endif

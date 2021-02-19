@@ -1,13 +1,14 @@
 #include "convEncode.h"
 #include "exeParams.h"
 #include <stdio.h>
+#include <stdlib.h>
 
-inline void tappedDelayInsert(uint8_t* tappedDelay, int tappedDelayCursor, uint8_t input){
+void tappedDelayInsert(uint8_t* tappedDelay, int tappedDelayCursor, uint8_t input){
     tappedDelay[tappedDelayCursor] = input;
     tappedDelay[tappedDelayCursor+k*K] = input;
 }
 
-inline void tappedDelayStep(int* tappedDelayCursor){
+void tappedDelayStep(int* tappedDelayCursor){
     int oldInd = *tappedDelayCursor;
     if(oldInd == 0){
         *tappedDelayCursor = k*K-1;
@@ -158,16 +159,18 @@ int convEnc(convEncoderState_t* state, uint8_t* uncoded, uint8_t* codedSegments,
     return segmentsOut;
 }
 
-inline uint8_t computeEncOutputSegment(convEncoderState_t* state){
+uint8_t computeEncOutputSegment(convEncoderState_t* state){
         //Take the dot product mod 2 for each generator, using the current tapped delay cursor.
         //Circular buffer is implemented so that this is always the full buffer
         int codedBits[n];
 
         //TODO: Try swapping the order of these 2 for loops
         for(int genIdx = 0; genIdx<n; genIdx++){
+            int codedBitsWorking = 0;
             for(int j = 0; j<k*K; j++){ //Need the full vector here
-                codedBits[genIdx] += state->tappedDelay[state->tappedDelayCursor+j]*state->polynomials[genIdx][j];
+                codedBitsWorking += state->tappedDelay[state->tappedDelayCursor+j]*state->polynomials[genIdx][j];
             }
+            codedBits[genIdx] = codedBitsWorking;
         }
 
         //Output the 0th as the LSb
@@ -177,4 +180,5 @@ inline uint8_t computeEncOutputSegment(convEncoderState_t* state){
             codedSegment = codedSegment << 1;
             codedSegment |= (codedBits[j]%2);
         }
+        return codedSegment;
 }

@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 
-#define POW2(X) (1l << (X))
+#define POW2(X) (1ul << (X))
 
-void unpackBigToLittleEndian(uint8_t* unpackArray, int unpackArrayLen, int packed);
-void unpackLittleToLittleEndian(uint8_t* unpackArray, int unpackArrayLen, int packed);
+void unpackBigToLittleEndian(uint8_t* unpackArray, int unpackArrayLen, uint64_t packed);
+void unpackLittleToLittleEndian(uint8_t* unpackArray, int unpackArrayLen, uint64_t packed);
 
 #endif

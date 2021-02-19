@@ -12,7 +12,7 @@
 
 #define n (2) //The number of coded output bits
 
-#define Rc = ((double) n/k) //The rate of the code (as a double)
+#define Rc ((double) k/n) //The rate of the code (as a double)
 
 #define STARTING_STATE (0) //The starting state of the encoder
 
