@@ -20,7 +20,7 @@
 #define PRINT_INTERVAL (1)
 #define PRINT_CHECK_INTERVAL (100)
 
-#define CPU (4)
+#define CPU (16)
 
 //From telemetry_helpers.c
 typedef struct timespec timespec_t;
