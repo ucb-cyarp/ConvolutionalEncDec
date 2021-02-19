@@ -39,13 +39,13 @@ $(BUILD_DIR)/test/%.o: $(TEST_DIR)/%.c $(HDRS_FULLPATH) | $(BUILD_DIR)/test/
 $(BUILD_DIR)/:
 	mkdir -p $@
 
-$(BUILD_DIR)/config/: $(BUILD_DIR)/
+$(BUILD_DIR)/config/: | $(BUILD_DIR)/
 	mkdir -p $@
 
-$(BUILD_DIR)/src/: $(BUILD_DIR)/
+$(BUILD_DIR)/src/: | $(BUILD_DIR)/
 	mkdir -p $@
 
-$(BUILD_DIR)/test/: $(BUILD_DIR)/
+$(BUILD_DIR)/test/: | $(BUILD_DIR)/
 	mkdir -p $@
 
 clean:
