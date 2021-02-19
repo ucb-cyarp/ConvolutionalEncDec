@@ -118,9 +118,9 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
 
         (state->iteration)++;
 
-        for(int dstState = 0; dstState<NUM_STATES; dstState++){
-            printf("State: %2d, Metric: %2d, Traceback: 0x%lx\n", dstState, state->nodeMetricsCur[dstState], state->traceBackCur[dstState]);
-        }
+        // for(int dstState = 0; dstState<NUM_STATES; dstState++){
+        //     printf("State: %2d, Metric: %2d, Traceback: 0x%lx\n", dstState, state->nodeMetricsCur[dstState], state->traceBackCur[dstState]);
+        // }
 
         //Implement Traceback + Check if Traceback is Ready
         if(state->iteration >= TRACEBACK_LEN){
