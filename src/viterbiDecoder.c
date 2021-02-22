@@ -131,7 +131,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
 
             //Fetch the results the traceback length back
             //For example, lets say the Traceback length is 1 and k=2.  The traceback buffer does not need to be shifted
-            TRACEBACK_TYPE tracebackSeg = (nodeTB >> ((TRACEBACK_LEN-1)*k)) % k;
+            TRACEBACK_TYPE tracebackSeg = (nodeTB >> ((TRACEBACK_LEN-1)*k)) % POW2(k);
 
             //Pack the traceback
 
