@@ -28,7 +28,7 @@ void viterbiInit(viterbiHardState_t* state){
         for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
             //Use the convolutional encoder functions to derive what coded segment corresponds to each edge
             resetConvEncoder(&tmpEncoder);
-            setConvEncoderState(&tmpEncoder, stateInd);
+            tmpEncoder.tappedDelay = stateInd;
             state->edgeCodedBits[stateInd][edgeInd] = convEncOneInput(&tmpEncoder, edgeInd);
             // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, state->edgeCodedBits[stateInd][edgeInd]);
         }
