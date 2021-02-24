@@ -82,10 +82,13 @@ typedef struct{
     METRIC_TYPE nodeMetricsB[NUM_STATES];
     TRACEBACK_TYPE traceBackB[NUM_STATES];
 
-    METRIC_TYPE* nodeMetricsCur;
-    TRACEBACK_TYPE* traceBackCur;
-    METRIC_TYPE* nodeMetricsNext;
-    TRACEBACK_TYPE* traceBackNext;
+    //Change these to be pointers to fixed sized arrays
+    //See https://stackoverflow.com/questions/1810083/c-pointers-pointing-to-an-array-of-fixed-size
+    //Is under K&R C section 5.12 "Complicated Declarations"
+    METRIC_TYPE (*nodeMetricsCur)[NUM_STATES];
+    TRACEBACK_TYPE (*traceBackCur)[NUM_STATES];
+    METRIC_TYPE (*nodeMetricsNext)[NUM_STATES];
+    TRACEBACK_TYPE (*traceBackNext)[NUM_STATES];
 
     int iteration; //Used to track when to start making traceback decisions
     uint8_t decodeCarryOver;
@@ -121,8 +124,8 @@ void resetViterbiDecoderHard(viterbiHardState_t* state);
 
 uint8_t calcHammingDist(uint8_t a, uint8_t b);
 
-int argminPathMetrics(METRIC_TYPE *metrics);
+int argminPathMetrics(METRIC_TYPE (*metrics)[POW2(k)]);
 
-int argminNodeMetrics(METRIC_TYPE *metrics);
+int argminNodeMetrics(METRIC_TYPE (*metrics)[NUM_STATES]);
 
 #endif

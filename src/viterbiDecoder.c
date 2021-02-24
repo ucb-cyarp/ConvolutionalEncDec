@@ -76,8 +76,8 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
         }
 
         //Trellis Itteration
-        METRIC_TYPE* newMetrics = state->nodeMetricsNext;
-        TRACEBACK_TYPE* newTraceback = state->traceBackNext;
+        METRIC_TYPE (*newMetrics)[NUM_STATES] = state->nodeMetricsNext;
+        TRACEBACK_TYPE (*newTraceback)[NUM_STATES] = state->traceBackNext;
         for(int dstState = 0; dstState<NUM_STATES; dstState++){
             //Since we are itterating on the destinations, we will be computing
             //the path metrics for each incoming edge
@@ -88,7 +88,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
                 //The nodes to select from are DstNodeIdx/(2^k) + i*2^((S-1)*k)
                 int srcNodeIdx = dstState/POW2(k) + edgeIn*POW2((S-1)*k);
-                METRIC_TYPE srcMetric = state->nodeMetricsCur[srcNodeIdx];
+                METRIC_TYPE srcMetric = (*state->nodeMetricsCur)[srcNodeIdx];
 
                 int edgeMetricIdx = state->edgeCodedBits[srcNodeIdx][edgeOut];
 
@@ -98,17 +98,17 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             }
 
             //Find the minimum weight path metric
-            int minPathEdgeInIdx = argminPathMetrics(pathMetrics);
+            int minPathEdgeInIdx = argminPathMetrics(&pathMetrics);
             int minPathSrcNodeIdx = dstState/POW2(k) + minPathEdgeInIdx*POW2((S-1)*k);
-            newMetrics[dstState] = pathMetrics[minPathEdgeInIdx];
+            (*newMetrics)[dstState] = pathMetrics[minPathEdgeInIdx];
 
             //Copy the traceback from the minimum path and shift left by k
             //Append the bits corresponding to the edges coming into this node
             //   - They are all the same and are the k LSbs of the node index
-            TRACEBACK_TYPE newTB = state->traceBackCur[minPathSrcNodeIdx];
+            TRACEBACK_TYPE newTB = (*state->traceBackCur)[minPathSrcNodeIdx];
             newTB = newTB << k;
             newTB |= edgeOut;
-            newTraceback[dstState] = newTB;
+            (*newTraceback)[dstState] = newTB;
 
             // printf("Min Path: %2d, Src Node: %2d Traceback: 0x%lx\n", minPathEdgeInIdx, minPathSrcNodeIdx, newTB);
         }
@@ -127,7 +127,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             //Make decision on traceback
             //Find current minimum node:
             int minNodeIdx = argminNodeMetrics(state->nodeMetricsCur);
-            TRACEBACK_TYPE nodeTB = state->traceBackCur[minNodeIdx];
+            TRACEBACK_TYPE nodeTB = (*state->traceBackCur)[minNodeIdx];
 
             //Fetch the results the traceback length back
             //For example, lets say the Traceback length is 1 and k=2.  The traceback buffer does not need to be shifted
@@ -185,7 +185,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
         //Since the state of the encoder was forced back to 0, we can just take the traceback from node 0
         //TODO: Change if padding is later removed
 
-        TRACEBACK_TYPE tb = state->traceBackCur[0];
+        TRACEBACK_TYPE tb = (*state->traceBackCur)[0];
 
         // printf("Traceback: 0x%lx\n", tb>>(S*k));
 
@@ -220,22 +220,22 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
 }
 
 void resetViterbiDecoderHard(viterbiHardState_t* state){
-    state->nodeMetricsCur = state->nodeMetricsA;
-    state->nodeMetricsNext = state->nodeMetricsB;
+    state->nodeMetricsCur = &(state->nodeMetricsA);
+    state->nodeMetricsNext = &(state->nodeMetricsB);
 
-    state->traceBackCur = state->traceBackA;
-    state->traceBackNext = state->traceBackB;
+    state->traceBackCur = &(state->traceBackA);
+    state->traceBackNext = &(state->traceBackB);
 
-    state->nodeMetricsCur[STARTING_STATE] = 0;
+    (*state->nodeMetricsCur)[STARTING_STATE] = 0;
 
     //Need to set the node metrics so that the initial path is the only non
     METRIC_TYPE forceNot = NUM_STATES+1;
     for(int i = 0; i<NUM_STATES; i++){
         if(i != STARTING_STATE){
-            state->nodeMetricsCur[i] = forceNot;
+            (*state->nodeMetricsCur)[i] = forceNot;
         }
 
-        state->traceBackCur[i] = 0;
+        (*state->traceBackCur)[i] = 0;
     }
 
     state->iteration = 0;
@@ -269,7 +269,7 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
     return distance;
 }
 
-int argminPathMetrics(METRIC_TYPE *metrics){
+int argminPathMetrics(METRIC_TYPE (*metrics)[POW2(k)]){
     //There are 2^k paths to check
     //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
@@ -283,7 +283,7 @@ int argminPathMetrics(METRIC_TYPE *metrics){
         int indA = i*2;
         int indB = i*2+1;
 
-        if(metrics[indA] <= metrics[indB]){
+        if((*metrics)[indA] <= (*metrics)[indB]){
             workingInd[i] = indA;
         }else{
             workingInd[i] = indB;
@@ -297,7 +297,7 @@ int argminPathMetrics(METRIC_TYPE *metrics){
             int indA = workingInd[j*2];
             int indB = workingInd[j*2+1];
 
-            if(metrics[indA] <= metrics[indB]){
+            if((*metrics)[indA] <= (*metrics)[indB]){
                 workingInd[j] = indA;
             }else{
                 workingInd[j] = indB;
@@ -308,7 +308,7 @@ int argminPathMetrics(METRIC_TYPE *metrics){
     return workingInd[0];
 }
 
-int argminNodeMetrics(METRIC_TYPE *metrics){
+int argminNodeMetrics(METRIC_TYPE (*metrics)[NUM_STATES]){
     //There are 2^k paths to check
     //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
@@ -322,7 +322,7 @@ int argminNodeMetrics(METRIC_TYPE *metrics){
         int indA = i*2;
         int indB = i*2+1;
 
-        if(metrics[indA] <= metrics[indB]){
+        if((*metrics)[indA] <= (*metrics)[indB]){
             workingInd[i] = indA;
         }else{
             workingInd[i] = indB;
@@ -336,7 +336,7 @@ int argminNodeMetrics(METRIC_TYPE *metrics){
             int indA = workingInd[j*2];
             int indB = workingInd[j*2+1];
 
-            if(metrics[indA] <= metrics[indB]){
+            if((*metrics)[indA] <= (*metrics)[indB]){
                 workingInd[j] = indA;
             }else{
                 workingInd[j] = indB;
@@ -348,11 +348,11 @@ int argminNodeMetrics(METRIC_TYPE *metrics){
 }
 
 void swapViterbiArrays(viterbiHardState_t* state){
-    METRIC_TYPE* tmpMetric = state->nodeMetricsCur;
+    METRIC_TYPE (*tmpMetric)[NUM_STATES] = state->nodeMetricsCur;
     state->nodeMetricsCur = state->nodeMetricsNext;
     state->nodeMetricsNext = tmpMetric;
 
-    TRACEBACK_TYPE* tmpTraceback = state->traceBackCur;
+    TRACEBACK_TYPE (*tmpTraceback)[NUM_STATES] = state->traceBackCur;
     state->traceBackCur = state->traceBackNext;
     state->traceBackNext = tmpTraceback;
 }
