@@ -85,6 +85,7 @@ int convEnc(convEncoderState_t* state, uint8_t* uncoded, uint8_t* codedSegments,
             }
 
             //TODO: Basically performing bit reverse of input 1 bit at a time.  Revisit after recieving Hacker's Delight
+            //May be OK since need to shift in one bit at a time before computing output.  
 
             //Shift in the MSBs
             uint8_t bitToShiftIn = (workingBits>>(remainingBits-1))%2;
