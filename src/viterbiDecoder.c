@@ -24,13 +24,26 @@ void viterbiInit(viterbiHardState_t* state){
 
     // printf("Decoder Trellis Init\n");
 
+    //Find the coded segements corresponding to the out edges of each node
+    EDGE_METRIC_INDEX_TYPE outEdgeCodedBits[NUM_STATES][POW2(k)];
     for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
         for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
             //Use the convolutional encoder functions to derive what coded segment corresponds to each edge
             resetConvEncoder(&tmpEncoder);
             tmpEncoder.tappedDelay = stateInd;
-            state->edgeCodedBits[stateInd][edgeInd] = convEncOneInput(&tmpEncoder, edgeInd);
-            // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, state->edgeCodedBits[stateInd][edgeInd]);
+            outEdgeCodedBits[stateInd][edgeInd] = convEncOneInput(&tmpEncoder, edgeInd);
+            // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, outEdgeCodedBits[stateInd][edgeInd]);
+        }
+    }
+
+    //Reorganize the coded segmenets so that they correspond to the in edges of the destination nodes
+    for(int dstStateInd = 0; dstStateInd < NUM_STATES; dstStateInd++){
+        int edgeOut = dstStateInd % POW2(k); //For a given destination node, all of the incoming edges are the same numbered output edge from each source node
+
+        for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
+            int srcNodeIdx = dstStateInd/POW2(k) + edgeIn*POW2((S-1)*k);
+            int edgeMetricCoded = outEdgeCodedBits[srcNodeIdx][edgeOut];
+            state->edgeCodedBits[dstStateInd][edgeIn] = edgeMetricCoded;
         }
     }
 }
@@ -67,14 +80,6 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
         uint8_t codedBits = codedSegments[i];
         // printf("Coded Segment: %2d, Seg: 0x%x\n", i, codedBits);
 
-        //Compute the edge metrics
-        //Compute the hamming distance for each possible codeword segment
-        uint8_t edgeMetrics[POW2(n)];
-        for(int j = 0; j<POW2(n); j++){
-            edgeMetrics[j] = calcHammingDist(j, codedBits);
-            // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
-        }
-
         //Trellis Itteration
         METRIC_TYPE* newMetrics = state->nodeMetricsNext;
         TRACEBACK_TYPE* newTraceback = state->traceBackNext;
@@ -100,9 +105,8 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             //      Do this instead of dereferencing.  This is a bit of recompute vs. communicate question
             //      except in this case it avoids tying to do a vector dereference.
             for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
-                int srcNodeIdx = dstState/POW2(k) + edgeIn*POW2((S-1)*k);
-                int edgeMetricIdx = state->edgeCodedBits[srcNodeIdx][edgeOut];
-                edgeMetric[edgeIn] = edgeMetrics[edgeMetricIdx];
+                uint8_t edgeCodedBits = state->edgeCodedBits[dstState][edgeIn];
+                edgeMetric[edgeIn] = calcHammingDist(edgeCodedBits, codedBits);
             }
 
             for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
@@ -268,9 +272,10 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
     //there is a popcount buitin: __builtin_popcount (https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html)
 
     uint8_t distance;
-    #if __has_builtin(__builtin_popcount)
+    #if __has_builtin(__builtin_popcount) && !defined(FORCE_NO_POPCNT_DECODER)
         distance = (uint8_t) __builtin_popcount(bitDifferences);
     #else
+        #warning popcnt not being used to compute Hamming Distance
         distance = 0;
         for(int i = 0; i<8; i++){
             distance += bitDifferences%2;
