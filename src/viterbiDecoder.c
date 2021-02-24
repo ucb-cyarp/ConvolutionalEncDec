@@ -84,17 +84,29 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
 
             int edgeOut = dstState % POW2(k);
 
+            METRIC_TYPE srcNodeMetrics[POW2(k)];
+            METRIC_TYPE edgeMetric[POW2(k)];
             METRIC_TYPE pathMetrics[POW2(k)];
             for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
                 //The nodes to select from are DstNodeIdx/(2^k) + i*2^((S-1)*k)
                 int srcNodeIdx = dstState/POW2(k) + edgeIn*POW2((S-1)*k);
                 METRIC_TYPE srcMetric = (*state->nodeMetricsCur)[srcNodeIdx];
+                srcNodeMetrics[edgeIn] = srcMetric;
+            }
 
+            //TODO: Try changing the edgeCodedBits to be aligned to the destination nodes
+            //TODO: Try changing this so that hamming distance is re-computed and possibly vectorized
+            //      Using vector xor and popcnt (which can execute on 4 different exe units)
+            //      Do this instead of dereferencing.  This is a bit of recompute vs. communicate question
+            //      except in this case it avoids tying to do a vector dereference.
+            for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
+                int srcNodeIdx = dstState/POW2(k) + edgeIn*POW2((S-1)*k);
                 int edgeMetricIdx = state->edgeCodedBits[srcNodeIdx][edgeOut];
+                edgeMetric[edgeIn] = edgeMetrics[edgeMetricIdx];
+            }
 
-                pathMetrics[edgeIn] = srcMetric + edgeMetrics[edgeMetricIdx];
-
-                // printf("Path Metric [%2d][%2d] = %d\n", dstState, edgeIn, pathMetrics[edgeIn]);
+            for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
+                pathMetrics[edgeIn] = srcNodeMetrics[edgeIn] + edgeMetric[edgeIn];
             }
 
             //Find the minimum weight path metric
