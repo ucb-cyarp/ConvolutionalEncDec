@@ -75,7 +75,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
         }
 
-        //TODO: Implement Trellis Itteration
+        //Trellis Itteration
         METRIC_TYPE* newMetrics = state->nodeMetricsNext;
         TRACEBACK_TYPE* newTraceback = state->traceBackNext;
         for(int dstState = 0; dstState<NUM_STATES; dstState++){
@@ -270,81 +270,31 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
 }
 
 int argminPathMetrics(METRIC_TYPE *metrics){
+    //TODO: Revisit
+    int minAddr = 0;
+
     //There are 2^k paths to check
-    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
-
-    //TODO: Check performance
-
-    //Since the number of metrics is a power of 2, the number of tree steps is k
-    METRIC_TYPE workingInd[POW2(k)/2];
-
-    //Do the first pairwise 
-    for(int i = 0; i<POW2(k)/2; i++){
-        int indA = i*2;
-        int indB = i*2+1;
-
-        if(metrics[indA] <= metrics[indB]){
-            workingInd[i] = indA;
-        }else{
-            workingInd[i] = indB;
+    for(int i = 1; i<POW2(k); i++){
+        if(metrics[i] < metrics[minAddr]){
+            minAddr = i;
         }
     }
 
-    //Do the remaining 
-    for(int i = k-1; i>0; i--){
-        int numComparisons = POW2(i-1);
-        for(int j = 0; j<numComparisons; j++){
-            int indA = workingInd[j*2];
-            int indB = workingInd[j*2+1];
-
-            if(metrics[indA] <= metrics[indB]){
-                workingInd[j] = indA;
-            }else{
-                workingInd[j] = indB;
-            }
-        }
-    }
-
-    return workingInd[0];
+    return minAddr;
 }
 
 int argminNodeMetrics(METRIC_TYPE *metrics){
-    //There are 2^k paths to check
-    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+    //TODO: Revisit
+    int minAddr = 0;
 
-    //TODO: Check performance
-
-    //Since the number of metrics is a power of 2, the number of tree steps is k
-    METRIC_TYPE workingInd[POW2(k*S)/2];
-
-    //Do the first pairwise 
-    for(int i = 0; i<POW2(k*S)/2; i++){
-        int indA = i*2;
-        int indB = i*2+1;
-
-        if(metrics[indA] <= metrics[indB]){
-            workingInd[i] = indA;
-        }else{
-            workingInd[i] = indB;
+    //There are 2^(k*S) nodes to check
+    for(int i = 1; i<POW2(k*S); i++){
+        if(metrics[i] < metrics[minAddr]){
+            minAddr = i;
         }
     }
 
-    //Do the remaining 
-    for(int i = k*S-1; i>0; i--){
-        int numComparisons = POW2(i-1);
-        for(int j = 0; j<numComparisons; j++){
-            int indA = workingInd[j*2];
-            int indB = workingInd[j*2+1];
-
-            if(metrics[indA] <= metrics[indB]){
-                workingInd[j] = indA;
-            }else{
-                workingInd[j] = indB;
-            }
-        }
-    }
-
-    return workingInd[0];
+    return minAddr;
 }
 
 void swapViterbiArrays(viterbiHardState_t* state){
