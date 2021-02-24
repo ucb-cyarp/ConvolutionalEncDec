@@ -21,6 +21,8 @@
 
 #define NUM_STATES (POW2(k*S))
 
+#define FORCE_NO_POPCNT_DECODER
+
 //TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?
 
 #define MAX_EDGE_WEIGHT (n) //With hamming distance as the metric, the max difference occurs if all bits are different
