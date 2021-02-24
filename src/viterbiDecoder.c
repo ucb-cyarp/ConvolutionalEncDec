@@ -75,7 +75,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
         }
 
-        //TODO: Implement Trellis Itteration
+        //Trellis Itteration
         METRIC_TYPE* newMetrics = state->nodeMetricsNext;
         TRACEBACK_TYPE* newTraceback = state->traceBackNext;
         for(int dstState = 0; dstState<NUM_STATES; dstState++){

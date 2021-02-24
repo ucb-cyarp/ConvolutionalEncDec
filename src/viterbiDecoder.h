@@ -14,14 +14,49 @@
 //supported at a time using this method but some external
 //scripting could be used to generate multiple discriptions
 
+//***** Decoder Options *******
+#define MAX_PKT_LEN_UNCODED_BITS (1024*16) //The max packet length in uncoded bits
+#define TRACEBACK_LEN (5*K)
+//***** End Options ******
+
 #define NUM_STATES (POW2(k*S))
 
-#define METRIC_TYPE uint32_t
-#define TRACEBACK_TYPE uint64_t
+//TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?
 
-#define EDGE_METRIC_INDEX_TYPE uint8_t //This defines the index of the comparison to be used when evaluating edges.  For 2 codes bits, there are 4 possibilities, 00, 01, 10, 11.
+#define MAX_EDGE_WEIGHT (n) //With hamming distance as the metric, the max difference occurs if all bits are different
 
-#define TRACEBACK_LEN (5*K)
+#define MAX_PKT_LEN_SEGMENTS (MAX_PKT_LEN_UNCODED_BITS + S)
+
+#if MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(8)
+    #define METRIC_TYPE uint8_t
+#elif MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(16)
+    #define METRIC_TYPE uint16_t
+#elif MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(32)
+    #define METRIC_TYPE uint32_t
+#else
+    #define METRIC_TYPE uint64_t
+#endif
+
+//This defines the index of the comparison to be used when evaluating edges.  For 2 codes bits, there are 4 possibilities, 00, 01, 10, 11.
+#if MAX_EDGE_WEIGHT <= POW2(8)
+    #define EDGE_METRIC_INDEX_TYPE uint8_t 
+#elif MAX_EDGE_WEIGHT <= POW2(16)
+    #define EDGE_METRIC_INDEX_TYPE uint16_t 
+#elif MAX_EDGE_WEIGHT <= POW2(32)
+    #define EDGE_METRIC_INDEX_TYPE uint32_t 
+#else
+    #define EDGE_METRIC_INDEX_TYPE uint64_t 
+#endif
+
+#if TRACEBACK_LEN*k <= 8
+    #define TRACEBACK_TYPE uint8_t
+#elif TRACEBACK_LEN*k <= 16
+    #define TRACEBACK_TYPE uint16_t
+#elif TRACEBACK_LEN*k <= 32
+    #define TRACEBACK_TYPE uint32_t
+#else
+    #define TRACEBACK_TYPE uint64_t
+#endif
 
 /**
  * State for the viterbi decoder between calls
