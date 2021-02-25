@@ -21,7 +21,7 @@
 
 #define NUM_STATES (POW2(k*S))
 
-#define FORCE_NO_POPCNT_DECODER
+// #define FORCE_NO_POPCNT_DECODER
 
 //TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?
 
@@ -79,18 +79,8 @@ typedef struct{
     //Decoder State
     //Using 2 arrays which will be swapped in each itteration
     //Allows us to write to a des
-    METRIC_TYPE nodeMetricsA[NUM_STATES];
-    TRACEBACK_TYPE traceBackA[NUM_STATES];
-    METRIC_TYPE nodeMetricsB[NUM_STATES];
-    TRACEBACK_TYPE traceBackB[NUM_STATES];
-
-    //Change these to be pointers to fixed sized arrays
-    //See https://stackoverflow.com/questions/1810083/c-pointers-pointing-to-an-array-of-fixed-size
-    //Is under K&R C section 5.12 "Complicated Declarations"
-    METRIC_TYPE (*nodeMetricsCur)[NUM_STATES];
-    TRACEBACK_TYPE (*traceBackCur)[NUM_STATES];
-    METRIC_TYPE (*nodeMetricsNext)[NUM_STATES];
-    TRACEBACK_TYPE (*traceBackNext)[NUM_STATES];
+    METRIC_TYPE nodeMetrics[NUM_STATES];
+    TRACEBACK_TYPE traceBack[NUM_STATES];
 
     int iteration; //Used to track when to start making traceback decisions
     uint8_t decodeCarryOver;
@@ -126,8 +116,8 @@ void resetViterbiDecoderHard(viterbiHardState_t* state);
 
 uint8_t calcHammingDist(uint8_t a, uint8_t b);
 
-int argminPathMetrics(METRIC_TYPE (*metrics)[POW2(k)]);
+int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]);
 
-int argminNodeMetrics(METRIC_TYPE (*metrics)[NUM_STATES]);
+int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]);
 
 #endif
