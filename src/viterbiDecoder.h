@@ -82,13 +82,7 @@ typedef struct{
     METRIC_TYPE nodeMetricsB[NUM_STATES];
     TRACEBACK_TYPE traceBackB[NUM_STATES];
 
-    //Change these to be pointers to fixed sized arrays
-    //See https://stackoverflow.com/questions/1810083/c-pointers-pointing-to-an-array-of-fixed-size
-    //Is under K&R C section 5.12 "Complicated Declarations"
-    METRIC_TYPE (*nodeMetricsCur)[NUM_STATES];
-    TRACEBACK_TYPE (*traceBackCur)[NUM_STATES];
-    METRIC_TYPE (*nodeMetricsNext)[NUM_STATES];
-    TRACEBACK_TYPE (*traceBackNext)[NUM_STATES];
+    bool modeA;
 
     int iteration; //Used to track when to start making traceback decisions
     uint8_t decodeCarryOver;
