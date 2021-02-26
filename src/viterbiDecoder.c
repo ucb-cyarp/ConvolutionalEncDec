@@ -256,9 +256,10 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
     //there is a popcount buitin: __builtin_popcount (https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html)
 
     uint8_t distance;
-    #if __has_builtin(__builtin_popcount)
+    #if __has_builtin(__builtin_popcount) && !defined(FORCE_NO_POPCNT_DECODER)
         distance = (uint8_t) __builtin_popcount(bitDifferences);
     #else
+        #warning popcnt not being used to compute Hamming Distance
         distance = 0;
         for(int i = 0; i<8; i++){
             distance += bitDifferences%2;
@@ -269,82 +270,104 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
     return distance;
 }
 
-int argminPathMetrics(METRIC_TYPE (*metrics)[POW2(k)]){
-    //There are 2^k paths to check
-    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]){
+    #ifndef SIMPLE_MIN
+        //There are 2^k paths to check
+        //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
-    //TODO: Check performance
+        //TODO: Check performance
 
-    //Since the number of metrics is a power of 2, the number of tree steps is k
-    METRIC_TYPE workingInd[POW2(k)/2];
+        //Since the number of metrics is a power of 2, the number of tree steps is k
+        METRIC_TYPE workingInd[POW2(k)/2];
 
-    //Do the first pairwise 
-    for(int i = 0; i<POW2(k)/2; i++){
-        int indA = i*2;
-        int indB = i*2+1;
-
-        if((*metrics)[indA] <= (*metrics)[indB]){
-            workingInd[i] = indA;
-        }else{
-            workingInd[i] = indB;
-        }
-    }
-
-    //Do the remaining 
-    for(int i = k-1; i>0; i--){
-        int numComparisons = POW2(i-1);
-        for(int j = 0; j<numComparisons; j++){
-            int indA = workingInd[j*2];
-            int indB = workingInd[j*2+1];
+        //Do the first pairwise 
+        for(int i = 0; i<POW2(k)/2; i++){
+            int indA = i*2;
+            int indB = i*2+1;
 
             if((*metrics)[indA] <= (*metrics)[indB]){
-                workingInd[j] = indA;
+                workingInd[i] = indA;
             }else{
-                workingInd[j] = indB;
+                workingInd[i] = indB;
             }
         }
-    }
 
-    return workingInd[0];
+        //Do the remaining 
+        for(int i = k-1; i>0; i--){
+            int numComparisons = POW2(i-1);
+            for(int j = 0; j<numComparisons; j++){
+                int indA = workingInd[j*2];
+                int indB = workingInd[j*2+1];
+
+                if((*metrics)[indA] <= (*metrics)[indB]){
+                    workingInd[j] = indA;
+                }else{
+                    workingInd[j] = indB;
+                }
+            }
+        }
+
+        return workingInd[0];
+    #else
+        int minIdx = 0;
+        for(int i = 1; i<POW2(k); i++){
+            if((*metrics)[minIdx] < (*metrics)[i]){
+                minIdx = i;
+            }
+        }
+
+        return minIdx;
+    #endif
 }
 
-int argminNodeMetrics(METRIC_TYPE (*metrics)[NUM_STATES]){
-    //There are 2^k paths to check
-    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]){
+    #ifndef SIMPLE_MIN
+        //There are 2^k paths to check
+        //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
-    //TODO: Check performance
+        //TODO: Check performance
 
-    //Since the number of metrics is a power of 2, the number of tree steps is k
-    METRIC_TYPE workingInd[POW2(k*S)/2];
+        //Since the number of metrics is a power of 2, the number of tree steps is k
+        METRIC_TYPE workingInd[POW2(k*S)/2];
 
-    //Do the first pairwise 
-    for(int i = 0; i<POW2(k*S)/2; i++){
-        int indA = i*2;
-        int indB = i*2+1;
-
-        if((*metrics)[indA] <= (*metrics)[indB]){
-            workingInd[i] = indA;
-        }else{
-            workingInd[i] = indB;
-        }
-    }
-
-    //Do the remaining 
-    for(int i = k*S-1; i>0; i--){
-        int numComparisons = POW2(i-1);
-        for(int j = 0; j<numComparisons; j++){
-            int indA = workingInd[j*2];
-            int indB = workingInd[j*2+1];
+        //Do the first pairwise 
+        for(int i = 0; i<POW2(k*S)/2; i++){
+            int indA = i*2;
+            int indB = i*2+1;
 
             if((*metrics)[indA] <= (*metrics)[indB]){
-                workingInd[j] = indA;
+                workingInd[i] = indA;
             }else{
-                workingInd[j] = indB;
+                workingInd[i] = indB;
             }
         }
-    }
 
-    return workingInd[0];
+        //Do the remaining 
+        for(int i = k*S-1; i>0; i--){
+            int numComparisons = POW2(i-1);
+            for(int j = 0; j<numComparisons; j++){
+                int indA = workingInd[j*2];
+                int indB = workingInd[j*2+1];
+
+                if((*metrics)[indA] <= (*metrics)[indB]){
+                    workingInd[j] = indA;
+                }else{
+                    workingInd[j] = indB;
+                }
+            }
+        }
+
+        return workingInd[0];
+    #else
+        int minIdx = 0;
+        for(int i = 1; i<NUM_STATES; i++){
+            if((*metrics)[minIdx] < (*metrics)[i]){
+                minIdx = i;
+            }
+        }
+
+        return minIdx;
+    #endif
 }
 
 void swapViterbiArrays(viterbiHardState_t* state){

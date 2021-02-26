@@ -21,6 +21,9 @@
 
 #define NUM_STATES (POW2(k*S))
 
+// #define FORCE_NO_POPCNT_DECODER
+#define SIMPLE_MIN
+
 //TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?
 
 #define MAX_EDGE_WEIGHT (n) //With hamming distance as the metric, the max difference occurs if all bits are different
@@ -124,8 +127,8 @@ void resetViterbiDecoderHard(viterbiHardState_t* state);
 
 uint8_t calcHammingDist(uint8_t a, uint8_t b);
 
-int argminPathMetrics(METRIC_TYPE (*metrics)[POW2(k)]);
+int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]);
 
-int argminNodeMetrics(METRIC_TYPE (*metrics)[NUM_STATES]);
+int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]);
 
 #endif
