@@ -35,7 +35,7 @@ void viterbiInit(viterbiHardState_t* state){
     }
 }
 
-int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_t* uncoded, int segmentsIn, bool last){
+int viterbiDecoderHard(viterbiHardState_t* restrict state, uint8_t* restrict codedSegments, uint8_t* restrict uncoded, int segmentsIn, bool last){
     //If the convolutional encoder forces the end of the message to be in the zero state, it allows us to
     //pad the last block with all zero codewords which, since the generating polynomials do not include nots,
     //would simply perpetuate the all zero path.  The metric of this path would not change.
@@ -76,8 +76,8 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
         }
 
         //Trellis Itteration
-        METRIC_TYPE (*newMetrics)[NUM_STATES] = state->nodeMetricsNext;
-        TRACEBACK_TYPE (*newTraceback)[NUM_STATES] = state->traceBackNext;
+        METRIC_TYPE (* restrict newMetrics)[NUM_STATES] = state->nodeMetricsNext;
+        TRACEBACK_TYPE (* restrict newTraceback)[NUM_STATES] = state->traceBackNext;
         for(int dstState = 0; dstState<NUM_STATES; dstState++){
             //Since we are itterating on the destinations, we will be computing
             //the path metrics for each incoming edge

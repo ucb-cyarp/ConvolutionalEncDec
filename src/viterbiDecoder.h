@@ -22,7 +22,7 @@
 #define NUM_STATES (POW2(k*S))
 
 // #define FORCE_NO_POPCNT_DECODER
-#define SIMPLE_MIN
+// #define SIMPLE_MIN
 
 //TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?
 
@@ -88,10 +88,10 @@ typedef struct{
     //Change these to be pointers to fixed sized arrays
     //See https://stackoverflow.com/questions/1810083/c-pointers-pointing-to-an-array-of-fixed-size
     //Is under K&R C section 5.12 "Complicated Declarations"
-    METRIC_TYPE (*nodeMetricsCur)[NUM_STATES];
-    TRACEBACK_TYPE (*traceBackCur)[NUM_STATES];
-    METRIC_TYPE (*nodeMetricsNext)[NUM_STATES];
-    TRACEBACK_TYPE (*traceBackNext)[NUM_STATES];
+    METRIC_TYPE (* restrict nodeMetricsCur)[NUM_STATES];
+    TRACEBACK_TYPE (* restrict traceBackCur)[NUM_STATES];
+    METRIC_TYPE (* restrict nodeMetricsNext)[NUM_STATES];
+    TRACEBACK_TYPE (* restrict traceBackNext)[NUM_STATES];
 
     int iteration; //Used to track when to start making traceback decisions
     uint8_t decodeCarryOver;
@@ -110,7 +110,7 @@ typedef struct{
  * @param last If true, returns the remaining traceback and resets after this iteration
  * @returns The number of uncoded bytes returned
  */ 
-int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_t* uncoded, int segmentsIn, bool last);
+int viterbiDecoderHard(viterbiHardState_t* restrict state, uint8_t* restrict codedSegments, uint8_t* restrict uncoded, int segmentsIn, bool last);
 
 /**
  * @brief Swaps the node metric and traceback arrays.  Used to update both the node metrics and traceback arrays after a trellis iteration.
