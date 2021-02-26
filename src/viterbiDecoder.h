@@ -125,7 +125,7 @@ void viterbiInit(viterbiHardState_t* state);
 
 void resetViterbiDecoderHard(viterbiHardState_t* state);
 
-uint8_t calcHammingDist(uint8_t a, uint8_t b);
+uint8_t calcHammingDist(uint8_t a, uint8_t b, int bits);
 
 int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]);
 

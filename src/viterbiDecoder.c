@@ -71,7 +71,7 @@ int viterbiDecoderHard(viterbiHardState_t* restrict state, uint8_t* restrict cod
         //Compute the hamming distance for each possible codeword segment
         uint8_t edgeMetrics[POW2(n)];
         for(int j = 0; j<POW2(n); j++){
-            edgeMetrics[j] = calcHammingDist(j, codedBits);
+            edgeMetrics[j] = calcHammingDist(j, codedBits, n);
             // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
         }
 
@@ -243,7 +243,7 @@ void resetViterbiDecoderHard(viterbiHardState_t* state){
     state->decodeCarryOverCount = 0;
 }
 
-uint8_t calcHammingDist(uint8_t a, uint8_t b){
+uint8_t calcHammingDist(uint8_t a, uint8_t b, int bits){
     uint8_t bitDifferences = a^b;
 
     //Need to count the number of ones in the bit differences
@@ -261,7 +261,7 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
     #else
         #warning popcnt not being used to compute Hamming Distance
         distance = 0;
-        for(int i = 0; i<8; i++){
+        for(int i = 0; i<bits; i++){
             distance += bitDifferences%2;
             bitDifferences = bitDifferences >> 1;
         }
