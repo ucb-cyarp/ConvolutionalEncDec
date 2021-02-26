@@ -371,11 +371,11 @@ int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]){
 }
 
 void swapViterbiArrays(viterbiHardState_t* state){
-    METRIC_TYPE (*tmpMetric)[NUM_STATES] = state->nodeMetricsCur;
+    METRIC_TYPE (* restrict tmpMetric)[NUM_STATES] = state->nodeMetricsCur;
     state->nodeMetricsCur = state->nodeMetricsNext;
     state->nodeMetricsNext = tmpMetric;
 
-    TRACEBACK_TYPE (*tmpTraceback)[NUM_STATES] = state->traceBackCur;
+    TRACEBACK_TYPE (* restrict tmpTraceback)[NUM_STATES] = state->traceBackCur;
     state->traceBackCur = state->traceBackNext;
     state->traceBackNext = tmpTraceback;
 }
