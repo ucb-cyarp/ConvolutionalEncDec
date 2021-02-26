@@ -422,7 +422,7 @@ int argmin4(const METRIC_TYPE (*metrics)[4]){
     //Stage 1, Reduce from 4 to 2
     ARGMIN_FIRST_STAGE(stage1, (*metrics), 2)
     //Stage 2, Reduce from 2 to 1
-    ARGMIN_LAST_STAGE(stage1)
+    ARGMIN_LAST_STAGE(stage1, (*metrics))
 }
 
 int argmin8(const METRIC_TYPE (*metrics)[8]){
@@ -431,9 +431,9 @@ int argmin8(const METRIC_TYPE (*metrics)[8]){
     //Stage 1, Reduce from 8 to 4
     ARGMIN_FIRST_STAGE(stage1, (*metrics), 4)
     //Stage 2, Reduce from 4 to 2
-    ARGMIN_INNER_STAGE(stage2, stage1, 2)
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 2)
     //Stage 3, Reduce from 2 to 1
-    ARGMIN_LAST_STAGE(stage2)
+    ARGMIN_LAST_STAGE(stage2, (*metrics))
 }
 
 int argmin16(const METRIC_TYPE (*metrics)[16]){
@@ -442,11 +442,11 @@ int argmin16(const METRIC_TYPE (*metrics)[16]){
     //Stage 1, Reduce from 16 to 8
     ARGMIN_FIRST_STAGE(stage1, (*metrics), 8)
     //Stage 2, Reduce from 8 to 4
-    ARGMIN_INNER_STAGE(stage2, stage1, 4)
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 4)
     //Stage 3, Reduce from 4 to 2
-    ARGMIN_INNER_STAGE(stage3, stage2, 2)
+    ARGMIN_INNER_STAGE(stage3, stage2, (*metrics), 2)
     //Stage 4, Reduce from 2 to 1
-    ARGMIN_LAST_STAGE(stage3)
+    ARGMIN_LAST_STAGE(stage3, (*metrics))
 }
 
 int argmin32(const METRIC_TYPE (*metrics)[32]){
@@ -455,13 +455,13 @@ int argmin32(const METRIC_TYPE (*metrics)[32]){
     //Stage 1, Reduce from 32 to 16
     ARGMIN_FIRST_STAGE(stage1, (*metrics), 16)
     //Stage 2, Reduce from 16 to 8
-    ARGMIN_INNER_STAGE(stage2, stage1, 8)
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 8)
     //Stage 3, Reduce from 8 to 4
-    ARGMIN_INNER_STAGE(stage3, stage2, 4)
+    ARGMIN_INNER_STAGE(stage3, stage2, (*metrics), 4)
     //Stage 4, Reduce from 4 to 2
-    ARGMIN_INNER_STAGE(stage4, stage3, 2)
+    ARGMIN_INNER_STAGE(stage4, stage3, (*metrics), 2)
     //Stage 5, Reduce from 2 to 1
-    ARGMIN_LAST_STAGE(stage4)
+    ARGMIN_LAST_STAGE(stage4, (*metrics))
 }
 
 int argmin64(const METRIC_TYPE (*metrics)[64]){
@@ -470,13 +470,13 @@ int argmin64(const METRIC_TYPE (*metrics)[64]){
     //Stage 1, Reduce from 64 to 32
     ARGMIN_FIRST_STAGE(stage1, (*metrics), 32)
     //Stage 2, Reduce from 32 to 16
-    ARGMIN_INNER_STAGE(stage2, stage1, 16)
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 16)
     //Stage 3, Reduce from 16 to 8
-    ARGMIN_INNER_STAGE(stage3, stage2, 8)
+    ARGMIN_INNER_STAGE(stage3, stage2, (*metrics), 8)
     //Stage 4, Reduce from 8 to 4
-    ARGMIN_INNER_STAGE(stage4, stage3, 4)
+    ARGMIN_INNER_STAGE(stage4, stage3, (*metrics), 4)
     //Stage 5, Reduce from 4 to 2
-    ARGMIN_INNER_STAGE(stage5, stage4, 2)
+    ARGMIN_INNER_STAGE(stage5, stage4, (*metrics), 2)
     //Stage 6, Reduce from 2 to 1
-    ARGMIN_LAST_STAGE(stage5)
+    ARGMIN_LAST_STAGE(stage5, (*metrics))
 }
