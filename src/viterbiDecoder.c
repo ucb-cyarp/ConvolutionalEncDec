@@ -271,7 +271,20 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
 }
 
 int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]){
-    #ifndef SIMPLE_MIN
+    #if POW2(k) == 2
+        return argmin2(metrics);
+    #elif POW2(k) == 4
+        return argmin4(metrics);
+    #elif POW2(k) == 8
+        return argmin8(metrics);
+    #elif POW2(k) == 16
+        return argmin16(metrics);
+    #elif POW2(k) == 32
+        return argmin32(metrics);
+    #elif POW2(k) == 64
+        return argmin64(metrics);
+    #elif !defined(SIMPLE_MIN)
+        #warning using unspecialized argmin
         //There are 2^k paths to check
         //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
@@ -309,6 +322,7 @@ int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]){
 
         return workingInd[0];
     #else
+        #warning using unspecialized argmin - simple
         int minIdx = 0;
         for(int i = 1; i<POW2(k); i++){
             if((*metrics)[minIdx] < (*metrics)[i]){
@@ -321,7 +335,20 @@ int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]){
 }
 
 int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]){
-    #ifndef SIMPLE_MIN
+    #if NUM_STATES == 2
+        return argmin2(metrics);
+    #elif NUM_STATES == 4
+        return argmin4(metrics);
+    #elif NUM_STATES == 8
+        return argmin8(metrics);
+    #elif NUM_STATES == 16
+        return argmin16(metrics);
+    #elif NUM_STATES == 32
+        return argmin32(metrics);
+    #elif NUM_STATES == 64
+        return argmin64(metrics);
+    #elif !defined(SIMPLE_MIN)
+        #warning using unspecialized argmin
         //There are 2^k paths to check
         //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
@@ -359,6 +386,7 @@ int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]){
 
         return workingInd[0];
     #else
+        #warning using unspecialized argmin - simple
         int minIdx = 0;
         for(int i = 1; i<NUM_STATES; i++){
             if((*metrics)[minIdx] < (*metrics)[i]){
@@ -378,4 +406,257 @@ void swapViterbiArrays(viterbiHardState_t* state){
     TRACEBACK_TYPE (* restrict tmpTraceback)[NUM_STATES] = state->traceBackCur;
     state->traceBackCur = state->traceBackNext;
     state->traceBackNext = tmpTraceback;
+}
+
+int argmin2(const METRIC_TYPE (*metrics)[2]){
+    if((*metrics)[1] < (*metrics)[0]){
+        return 1;
+    }
+    return 0;
+}
+
+//TODO: Autogen for larger cases
+int argmin4(const METRIC_TYPE (*metrics)[4]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    METRIC_TYPE workingIndStage1[2];
+    //Stage 1, Reduce from 4 to 2
+    for(int i = 0; i<2; i++){
+        int indA = i*2;
+        int indB = i*2+1;
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage1[i] = indA;
+        }else{
+            workingIndStage1[i] = indB;
+        }
+    }
+
+    //Stage 2, reduce from 2 to 1
+    if((*metrics)[workingIndStage1[1]] < (*metrics)[workingIndStage1[0]]){
+        return workingIndStage1[1];
+    }
+    return workingIndStage1[0];
+}
+
+int argmin8(const METRIC_TYPE (*metrics)[8]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    METRIC_TYPE workingIndStage1[4];
+    //Stage 1, Reduce from 8 to 4
+    for(int i = 0; i<4; i++){
+        int indA = i*2;
+        int indB = i*2+1;
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage1[i] = indA;
+        }else{
+            workingIndStage1[i] = indB;
+        }
+    }
+
+    //Stage 2, reduce from 4 to 2
+    METRIC_TYPE workingIndStage2[4];
+    for(int i = 0; i<2; i++){
+        int indA = workingIndStage1[i*2];
+        int indB = workingIndStage1[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage2[i] = indA;
+        }else{
+            workingIndStage2[i] = indB;
+        }
+    }
+
+    //Stage 3, reduce from 2 to 1
+    if((*metrics)[workingIndStage2[1]] < (*metrics)[workingIndStage2[0]]){
+        return workingIndStage2[1];
+    }
+    return workingIndStage2[0];
+}
+
+int argmin16(const METRIC_TYPE (*metrics)[16]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    METRIC_TYPE workingIndStage1[8];
+    //Stage 1, Reduce from 16 to 8
+    for(int i = 0; i<8; i++){
+        int indA = i*2;
+        int indB = i*2+1;
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage1[i] = indA;
+        }else{
+            workingIndStage1[i] = indB;
+        }
+    }
+
+    //Stage 2, reduce from 8 to 4
+    METRIC_TYPE workingIndStage2[4];
+    for(int i = 0; i<4; i++){
+        int indA = workingIndStage1[i*2];
+        int indB = workingIndStage1[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage2[i] = indA;
+        }else{
+            workingIndStage2[i] = indB;
+        }
+    }
+
+    //Stage 3, reduce from 4 to 2
+    METRIC_TYPE workingIndStage3[2];
+    for(int i = 0; i<2; i++){
+        int indA = workingIndStage2[i*2];
+        int indB = workingIndStage2[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage3[i] = indA;
+        }else{
+            workingIndStage3[i] = indB;
+        }
+    }
+
+    //Stage 4, reduce from 2 to 1
+    if((*metrics)[workingIndStage3[1]] < (*metrics)[workingIndStage3[0]]){
+        return workingIndStage3[1];
+    }
+    return workingIndStage3[0];
+}
+
+int argmin32(const METRIC_TYPE (*metrics)[32]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    METRIC_TYPE workingIndStage1[16];
+    //Stage 1, Reduce from 32 to 16
+    for(int i = 0; i<16; i++){
+        int indA = i*2;
+        int indB = i*2+1;
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage1[i] = indA;
+        }else{
+            workingIndStage1[i] = indB;
+        }
+    }
+
+    //Stage 2, reduce from 16 to 8
+    METRIC_TYPE workingIndStage2[8];
+    for(int i = 0; i<8; i++){
+        int indA = workingIndStage1[i*2];
+        int indB = workingIndStage1[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage2[i] = indA;
+        }else{
+            workingIndStage2[i] = indB;
+        }
+    }
+
+    //Stage 3, reduce from 8 to 4
+    METRIC_TYPE workingIndStage3[4];
+    for(int i = 0; i<4; i++){
+        int indA = workingIndStage2[i*2];
+        int indB = workingIndStage2[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage3[i] = indA;
+        }else{
+            workingIndStage3[i] = indB;
+        }
+    }
+
+    //Stage 4, reduce from 4 to 2
+    METRIC_TYPE workingIndStage4[2];
+    for(int i = 0; i<2; i++){
+        int indA = workingIndStage3[i*2];
+        int indB = workingIndStage3[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage4[i] = indA;
+        }else{
+            workingIndStage4[i] = indB;
+        }
+    }
+
+    //Stage 5, reduce from 2 to 1
+    if((*metrics)[workingIndStage4[1]] < (*metrics)[workingIndStage4[0]]){
+        return workingIndStage4[1];
+    }
+    return workingIndStage4[0];
+}
+
+int argmin64(const METRIC_TYPE (*metrics)[64]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    METRIC_TYPE workingIndStage1[32];
+    //Stage 1, Reduce from 64 to 32
+    for(int i = 0; i<32; i++){
+        int indA = i*2;
+        int indB = i*2+1;
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage1[i] = indA;
+        }else{
+            workingIndStage1[i] = indB;
+        }
+    }
+
+    //Stage 2, reduce from 32 to 16
+    METRIC_TYPE workingIndStage2[16];
+    for(int i = 0; i<16; i++){
+        int indA = workingIndStage1[i*2];
+        int indB = workingIndStage1[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage2[i] = indA;
+        }else{
+            workingIndStage2[i] = indB;
+        }
+    }
+
+    //Stage 3, reduce from 16 to 8
+    METRIC_TYPE workingIndStage3[8];
+    for(int i = 0; i<8; i++){
+        int indA = workingIndStage2[i*2];
+        int indB = workingIndStage2[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage3[i] = indA;
+        }else{
+            workingIndStage3[i] = indB;
+        }
+    }
+
+    //Stage 4, reduce from 8 to 4
+    METRIC_TYPE workingIndStage4[4];
+    for(int i = 0; i<4; i++){
+        int indA = workingIndStage3[i*2];
+        int indB = workingIndStage3[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage4[i] = indA;
+        }else{
+            workingIndStage4[i] = indB;
+        }
+    }
+
+    //Stage 5, reduce from 4 to 2
+    METRIC_TYPE workingIndStage5[2];
+    for(int i = 0; i<4; i++){
+        int indA = workingIndStage4[i*2];
+        int indB = workingIndStage4[i*2+1];
+
+        if((*metrics)[indA] <= (*metrics)[indB]){
+            workingIndStage5[i] = indA;
+        }else{
+            workingIndStage5[i] = indB;
+        }
+    }
+
+    //Stage 5, reduce from 2 to 1
+    if((*metrics)[workingIndStage5[1]] < (*metrics)[workingIndStage5[0]]){
+        return workingIndStage5[1];
+    }
+    return workingIndStage5[0];
 }

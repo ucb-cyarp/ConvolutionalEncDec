@@ -131,4 +131,11 @@ int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]);
 
 int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]);
 
+int argmin2(const METRIC_TYPE (*metrics)[2]);
+int argmin4(const METRIC_TYPE (*metrics)[4]);
+int argmin8(const METRIC_TYPE (*metrics)[8]);
+int argmin16(const METRIC_TYPE (*metrics)[16]);
+int argmin32(const METRIC_TYPE (*metrics)[32]);
+int argmin64(const METRIC_TYPE (*metrics)[64]);
+
 #endif
