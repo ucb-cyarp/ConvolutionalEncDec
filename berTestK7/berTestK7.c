@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <math.h>
 
-#define ENCODE_PKT_BYTE_LEN (1024)
+#define ENCODE_PKT_BYTE_LEN (10240)
 #define PKTS (1000)
 #define PRINT_PERIOD (100)
 #define RAND_SEED (9865)

@@ -42,7 +42,7 @@ void resetViterbiDecoderHardButterflyk1(viterbiHardState_t* state){
     // int newStartingIdx = ROTATE_RIGHT(startingState, k, k*S);
     int newStartingIdx = STARTING_STATE;
 
-    (*state->nodeMetricsCur)[newStartingIdx] = 0;
+    state->nodeMetricsA[newStartingIdx] = 0;
 
     //Need to set the node metrics so that the initial path is the only non
     METRIC_TYPE forceNot = NUM_STATES+1;
@@ -50,10 +50,10 @@ void resetViterbiDecoderHardButterflyk1(viterbiHardState_t* state){
         if(i != STARTING_STATE){
             // int newIdx = ROTATE_RIGHT(i, k, k*S);
             int newIdx = i;
-            (*state->nodeMetricsCur)[newIdx] = forceNot;
+            state->nodeMetricsA[newIdx] = forceNot;
         }
 
-        (*state->traceBackCur)[i] = 0;
+        state->traceBackA[i] = 0;
     }
 
     state->iteration = 0;
@@ -76,29 +76,38 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
         }
 
+        METRIC_TYPE newMetrics[NUM_STATES];
+        TRACEBACK_TYPE newTraceback[NUM_STATES];
+
         //Trellis Itteration
         for(int butterfly = 0; butterfly<(NUM_STATES/2); butterfly++){
             //Implement the 2 butterfly
             METRIC_TYPE a[2];
-            a[0] = (*state->nodeMetricsCur)[butterfly] + edgeMetrics[state->edgeCodedBits[butterfly][0]];
-            a[1] = (*state->nodeMetricsCur)[(NUM_STATES/2) + butterfly] + edgeMetrics[state->edgeCodedBits[(NUM_STATES/2) + butterfly][0]];
+            a[0] = state->nodeMetricsA[butterfly] + edgeMetrics[state->edgeCodedBits[butterfly][0]];
+            a[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + edgeMetrics[state->edgeCodedBits[(NUM_STATES/2) + butterfly][0]];
 
             METRIC_TYPE b[2];
-            b[0] = (*state->nodeMetricsCur)[butterfly] + edgeMetrics[state->edgeCodedBits[butterfly][1]];
-            b[1] = (*state->nodeMetricsCur)[(NUM_STATES/2) + butterfly] + edgeMetrics[state->edgeCodedBits[(NUM_STATES/2) + butterfly][1]];
-
-            int a_select = a[0] <= a[1] ? 0 : 1;
-            int b_select = b[0] <= b[1] ? 0 : 1;
-
-            (*state->nodeMetricsCur)[butterfly] = a[a_select];
-            (*state->nodeMetricsCur)[(NUM_STATES/2) + butterfly] = b[b_select];
+            b[0] = state->nodeMetricsA[butterfly] + edgeMetrics[state->edgeCodedBits[butterfly][1]];
+            b[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + edgeMetrics[state->edgeCodedBits[(NUM_STATES/2) + butterfly][1]];
 
             TRACEBACK_TYPE traceback[2];
-            traceback[0] = (*state->traceBackCur)[butterfly];
-            traceback[1] = (*state->traceBackCur)[(NUM_STATES/2) + butterfly];
+            traceback[0] = state->traceBackA[butterfly];
+            traceback[1] = state->traceBackA[(NUM_STATES/2) + butterfly];
 
-            (*state->traceBackCur)[butterfly] = traceback[a_select] << 1; //Shifts on zero
-            (*state->traceBackCur)[(NUM_STATES/2) + butterfly] = (traceback[b_select] << 1) + 1; //Shifts on 1
+            //It is essential to perform these operations without computing the index to select once
+            //and then using that intermediate index to select both the metric and traceback
+            //That extra level of indirection causes the compiler (at least clang) to not autovectorize this loop
+            METRIC_TYPE aMetric = a[0] <= a[1] ? a[0] : a[1];
+            METRIC_TYPE bMetric = b[0] <= b[1] ? b[0] : b[1];
+            
+            TRACEBACK_TYPE aTraceback = a[0] <= a[1] ? traceback[0] : traceback[1];
+            TRACEBACK_TYPE bTraceback = b[0] <= b[1] ? traceback[0] : traceback[1];
+
+            newMetrics[butterfly] = aMetric;
+            newMetrics[(NUM_STATES/2) + butterfly] = bMetric;
+
+            newTraceback[butterfly] = aTraceback << 1; //Shifts on zero
+            newTraceback[(NUM_STATES/2) + butterfly] = (bTraceback << 1) + 1; //Shifts on 1
 
             // printf("Min Path: %2d, Src Node: %2d Traceback: 0x%lx\n", minPathEdgeInIdx, minPathSrcNodeIdx, newTB);
         }
@@ -106,18 +115,16 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         //Perform the shuffle
         //Is an interleaving operation
         for(int idx = 0; idx<NUM_STATES/2; idx++){
-            (*state->nodeMetricsNext)[idx*2] = (*state->nodeMetricsCur)[idx];
-            (*state->nodeMetricsNext)[idx*2+1] = (*state->nodeMetricsCur)[NUM_STATES/2 + idx];
+            state->nodeMetricsA[idx*2] = newMetrics[idx];
+            state->nodeMetricsA[idx*2+1] = newMetrics[NUM_STATES/2 + idx];
         }
 
         for(int idx = 0; idx<NUM_STATES/2; idx++){
-            (*state->traceBackNext)[idx*2] = (*state->traceBackCur)[idx];
-            (*state->traceBackNext)[idx*2+1] = (*state->traceBackCur)[NUM_STATES/2 + idx];
+            state->traceBackA[idx*2] = newTraceback[idx];
+            state->traceBackA[idx*2+1] = newTraceback[NUM_STATES/2 + idx];
         }
 
         (state->iteration)++;
-
-        swapViterbiArrays(state);
 
         // for(int dstState = 0; dstState<NUM_STATES; dstState++){
         //     printf("State: %2d, Metric: %2d, Traceback: 0x%lx\n", dstState, state->nodeMetricsCur[dstState], state->traceBackCur[dstState]);
@@ -129,7 +136,7 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             //Find current minimum node:
             int minNodeIdx = argminNodeMetrics(state->nodeMetricsCur);
             // int minNodeIdx = argminNodeMetrics(state->nodeMetricsCur);
-            TRACEBACK_TYPE nodeTB = (*state->traceBackCur)[minNodeIdx];
+            TRACEBACK_TYPE nodeTB = state->traceBackA[minNodeIdx];
 
             //Fetch the results the traceback length back
             //For example, lets say the Traceback length is 1 and k=2.  The traceback buffer does not need to be shifted
@@ -187,7 +194,7 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         //Since the state of the encoder was forced back to 0, we can just take the traceback from node 0
         //TODO: Change if padding is later removed
 
-        TRACEBACK_TYPE tb = (*state->traceBackCur)[0];
+        TRACEBACK_TYPE tb = state->traceBackA[0];
 
         // printf("Traceback: 0x%lx\n", tb>>(S*k));
 

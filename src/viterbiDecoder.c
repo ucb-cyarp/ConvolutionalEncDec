@@ -480,3 +480,6 @@ int argmin64(const METRIC_TYPE (*metrics)[64]){
     //Stage 6, Reduce from 2 to 1
     ARGMIN_LAST_STAGE(stage5, (*metrics))
 }
+
+//Include the specialized butterfly versions
+#include "viterbiDecoderButterflyk1.c"
