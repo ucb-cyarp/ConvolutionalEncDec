@@ -48,13 +48,13 @@ int main(int argc, char* argv[]){
 
     printf("************* Viterbi Decoder Test *************\n");
     viterbiHardState_t viterbiState;
-    resetViterbiDecoderHard(&viterbiState);
-    viterbiInit(&viterbiState);
+    VITERBI_RESET(&viterbiState);
+    VITERBI_INIT(&viterbiState);
     viterbiConfigCheck();
 
     uint8_t corruptedCoded[8/k+S] = {0b01, 0b11, 0b01, 0b10, 0b10, 0b11, 0b01, 0b00, 0b00, 0b00};
     uint8_t decoded[1];
-    int decodedBytesReturned = viterbiDecoderHard(&viterbiState, corruptedCoded, decoded, 8/k+S, true);
+    int decodedBytesReturned = VITERBI_DECODER_HARD(&viterbiState, corruptedCoded, decoded, 8/k+S, true);
 
     printf("Decoded (String Order):");
     for(int i = 0; i<(8/k+S); i++){
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]){
     assert(decoded[0] == expected);
 
     printf("******** Viterbi Decoder Node Metric Test*******\n");
-    resetViterbiDecoderHard(&viterbiState);
+    VITERBI_RESET(&viterbiState);
     assert((*viterbiState.nodeMetricsCur)[0] == 0);
     assert((*viterbiState.nodeMetricsCur)[2] == 5);
     assert((*viterbiState.nodeMetricsCur)[1] == 5);
@@ -77,7 +77,7 @@ int main(int argc, char* argv[]){
     assert((*viterbiState.traceBackCur)[2] == 0);
     assert((*viterbiState.traceBackCur)[1] == 0);
     assert((*viterbiState.traceBackCur)[3] == 0);
-    viterbiDecoderHard(&viterbiState, corruptedCoded+0, decoded, 1, false);
+    VITERBI_DECODER_HARD(&viterbiState, corruptedCoded+0, decoded, 1, false);
     assert((*viterbiState.nodeMetricsCur)[0] == 1);
     assert((*viterbiState.nodeMetricsCur)[2] == 6);
     assert((*viterbiState.nodeMetricsCur)[1] == 1);
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]){
     assert((*viterbiState.traceBackCur)[2] == 0b0);
     assert((*viterbiState.traceBackCur)[1] == 0b1);
     assert((*viterbiState.traceBackCur)[3] == 0b1);
-    viterbiDecoderHard(&viterbiState, corruptedCoded+1, decoded, 1, false);
+    VITERBI_DECODER_HARD(&viterbiState, corruptedCoded+1, decoded, 1, false);
     assert((*viterbiState.nodeMetricsCur)[0] == 3);
     assert((*viterbiState.nodeMetricsCur)[2] == 1);
     assert((*viterbiState.nodeMetricsCur)[1] == 1);
@@ -95,7 +95,7 @@ int main(int argc, char* argv[]){
     assert((*viterbiState.traceBackCur)[2] == 0b10);
     assert((*viterbiState.traceBackCur)[1] == 0b01);
     assert((*viterbiState.traceBackCur)[3] == 0b11);
-    viterbiDecoderHard(&viterbiState, corruptedCoded+2, decoded, 1, false);
+    VITERBI_DECODER_HARD(&viterbiState, corruptedCoded+2, decoded, 1, false);
     assert((*viterbiState.nodeMetricsCur)[0] == 1);
     assert((*viterbiState.nodeMetricsCur)[2] == 2);
     assert((*viterbiState.nodeMetricsCur)[1] == 3);
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]){
     assert((*viterbiState.traceBackCur)[2] == 0b010);
     assert((*viterbiState.traceBackCur)[1] == 0b101);
     assert((*viterbiState.traceBackCur)[3] == 0b011);
-    viterbiDecoderHard(&viterbiState, corruptedCoded+3, decoded, 1, false);
+    VITERBI_DECODER_HARD(&viterbiState, corruptedCoded+3, decoded, 1, false);
     assert((*viterbiState.nodeMetricsCur)[0] == 2);
     assert((*viterbiState.nodeMetricsCur)[2] == 2);
     assert((*viterbiState.nodeMetricsCur)[1] == 2);

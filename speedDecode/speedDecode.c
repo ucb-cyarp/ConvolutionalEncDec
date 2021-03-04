@@ -61,8 +61,8 @@ void* testThread(void* arg){
 
     //Initialize the Decoder
     viterbiHardState_t viterbiState;
-    resetViterbiDecoderHard(&viterbiState);
-    viterbiInit(&viterbiState);
+    VITERBI_RESET(&viterbiState);
+    VITERBI_INIT(&viterbiState);
     viterbiConfigCheck();
 
     uint8_t decodedBytes[ENCODE_PKT_BYTE_LEN];
@@ -76,7 +76,7 @@ void* testThread(void* arg){
     timespec_t lastPrint = startTime;
     int printCheck = 0;
     while(1){
-        int decodedBytesReturned = viterbiDecoderHard(&viterbiState, codedSegments[currentPkt], decodedBytes, 8*ENCODE_PKT_BYTE_LEN/k+S, true);
+        int decodedBytesReturned = VITERBI_DECODER_HARD(&viterbiState, codedSegments[currentPkt], decodedBytes, 8*ENCODE_PKT_BYTE_LEN/k+S, true);
         if(currentPkt<(PKTS-1)){
             currentPkt++;
         }else{

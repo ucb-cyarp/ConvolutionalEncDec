@@ -101,4 +101,17 @@ void unpackLittleToLittleEndian(uint8_t* unpackArray, int unpackArrayLen, uint64
     } \
     return PREV_NAME ## WorkingInd [1];
 
+//Ex. rotate 1 with 8 bits
+// 7 6 5 4  3 2 1 0
+//   7 6 5  4 3 2 1 shift right 1
+// < - - -  - - - 0 mask with 1 and shift by 8-1=6 places
+
+//Ex. rotate 1 with 8 bits
+// 7 6 5 4  3 2 1 0
+//     7 6  5 4 3 2 shift right 2
+// < - - -  - - 1 0 mask with 1 and shift by 8-2=6 places
+
+
+#define ROTATE_RIGHT(VAL, SHIFT_AMT, BITS) ( (VAL >> SHIFT_AMT) | ( (VAL & (POW2(SHIFT_AMT)-1)) << (BITS-SHIFT_AMT) ) )
+
 #endif

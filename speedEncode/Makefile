@@ -14,7 +14,7 @@ TEST_DIR=.
 INC=-I$(CONFIG_DIR) -I$(SRC_DIR) -I$(TEST_DIR)
 
 CONFIG_SRCS=convCodeParams.c
-SRCS=convEncode.c convHelpers.c viterbiDecoder.c
+SRCS=convEncode.c convHelpers.c viterbiDecoder.c  viterbiDecoderButterflyk1.c
 TEST_SRCS=speedEncode.c
 
 CONFIG_OBJS=$(patsubst %.c,$(BUILD_DIR)/config/%.o,$(CONFIG_SRCS))

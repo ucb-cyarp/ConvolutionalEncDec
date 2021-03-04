@@ -61,6 +61,16 @@
     #define TRACEBACK_TYPE uint64_t
 #endif
 
+#if k==1
+    #define VITERBI_DECODER_HARD viterbiDecoderHardButterflyk1
+    #define VITERBI_INIT viterbiInitButterflyk1
+    #define VITERBI_RESET resetViterbiDecoderHardButterflyk1
+#else
+    #define VITERBI_DECODER_HARD viterbiDecoderHard
+    #define VITERBI_INIT viterbiInit
+    #define VITERBI_RESET resetViterbiDecoderHard
+#endif
+
 /**
  * State for the viterbi decoder between calls
  * 
@@ -137,5 +147,8 @@ int argmin8(const METRIC_TYPE (*metrics)[8]);
 int argmin16(const METRIC_TYPE (*metrics)[16]);
 int argmin32(const METRIC_TYPE (*metrics)[32]);
 int argmin64(const METRIC_TYPE (*metrics)[64]);
+
+//Include the specialization headers
+#include "viterbiDecoderButterflyk1.h"
 
 #endif
