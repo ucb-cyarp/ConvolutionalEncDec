@@ -15,7 +15,7 @@
 #include <time.h>
 #include <assert.h>
 
-#define ENCODE_PKT_BYTE_LEN (1024)
+#define ENCODE_PKT_BYTE_LEN (2048/8)
 #define PKTS (16)
 #define PRINT_INTERVAL (1)
 #define PRINT_CHECK_INTERVAL (100)

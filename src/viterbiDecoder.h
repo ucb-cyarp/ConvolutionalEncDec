@@ -17,6 +17,12 @@
 //***** Decoder Options *******
 #define MAX_PKT_LEN_UNCODED_BITS (1024*16) //The max packet length in uncoded bits
 #define TRACEBACK_LEN (5*K)
+
+//For new traceback mechanism
+#define TRACEBACK_BUFFER_LEN (MAX_PKT_LEN_UNCODED_BITS) //In bits
+//TODO: Add support for block traceback
+//When performing block like traceback, the block size is the TRACEBACK_BUFFER_LEN-TRACEBACK_LEN
+//The traceback logic still occurs over the 
 //***** End Options ******
 
 #define NUM_STATES (POW2(k*S))
@@ -71,6 +77,8 @@
     #define VITERBI_RESET resetViterbiDecoderHard
 #endif
 
+#define TRACEBACK_BYTES ((TRACEBACK_BUFFER_LEN+S*k)/8 + 1) //+1 to handle non-multiple of 8 in preproecessor.  TODO: Implement proper rounding
+
 /**
  * State for the viterbi decoder between calls
  * 
@@ -106,6 +114,14 @@ typedef struct{
     int iteration; //Used to track when to start making traceback decisions
     uint8_t decodeCarryOver;
     uint8_t decodeCarryOverCount;
+
+    //Traceback as a series of  buffers
+    //One buffer for each node but arranged such that
+    //the different states are contiguous for a single access
+    //in time (which helps with vectorization)
+    //When traceback occurs, the traceback cursor is reset
+    //Circular buffering and wraparound checking is therefore not required
+    uint8_t tracebackBufs[TRACEBACK_BYTES][NUM_STATES];
 } viterbiHardState_t;
 
 /**

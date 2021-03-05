@@ -7,8 +7,8 @@
 
 
 int viterbiConfigCheck(){
-    if(sizeof(TRACEBACK_TYPE)*8 < TRACEBACK_LEN){
-        printf("Traceback type cannot accomodate requested traceback length\n");
+    if(STARTING_STATE != 0){
+        printf("Currently only support starting state of 0\n");
         exit(1);
     }
 

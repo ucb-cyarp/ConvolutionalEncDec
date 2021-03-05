@@ -113,5 +113,6 @@ void unpackLittleToLittleEndian(uint8_t* unpackArray, int unpackArrayLen, uint64
 
 
 #define ROTATE_RIGHT(VAL, SHIFT_AMT, BITS) ( (VAL >> SHIFT_AMT) | ( (VAL & (POW2(SHIFT_AMT)-1)) << (BITS-SHIFT_AMT) ) )
+#define ROTATE_LEFT(VAL, SHIFT_AMT, BITS) ( ((VAL & (POW2(BITS-SHIFT_AMT)-1)) << SHIFT_AMT) | (VAL >> (BITS-SHIFT_AMT)) )
 
 #endif
