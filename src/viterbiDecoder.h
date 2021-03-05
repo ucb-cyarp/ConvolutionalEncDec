@@ -27,7 +27,7 @@
 
 #define NUM_STATES (POW2(k*S))
 
-// #define FORCE_NO_POPCNT_DECODER
+#define FORCE_NO_POPCNT_DECODER
 // #define SIMPLE_MIN
 
 //TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?

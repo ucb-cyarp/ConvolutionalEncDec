@@ -71,14 +71,6 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         uint8_t codedBits = codedSegments[i];
         // printf("Coded Segment: %2d, Seg: 0x%x\n", i, codedBits);
 
-        //Compute the edge metrics
-        //Compute the hamming distance for each possible codeword segment
-        uint8_t edgeMetrics[POW2(n)];
-        for(int j = 0; j<POW2(n); j++){
-            edgeMetrics[j] = calcHammingDist(j, codedBits, n);
-            // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
-        }
-
         METRIC_TYPE newMetrics[NUM_STATES];
         TRACEBACK_TYPE newTraceback[NUM_STATES];
 
@@ -91,12 +83,12 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         for(int butterfly = 0; butterfly<(NUM_STATES/2); butterfly++){
             //Implement the 2 butterfly
             METRIC_TYPE a[2];
-            a[0] = state->nodeMetricsA[butterfly] + edgeMetrics[state->edgeCodedBits[butterfly][0]];
-            a[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + edgeMetrics[state->edgeCodedBits[(NUM_STATES/2) + butterfly][0]];
+            a[0] = state->nodeMetricsA[butterfly] + calcHammingDist(state->edgeCodedBits[butterfly][0], codedBits, n);
+            a[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + calcHammingDist(state->edgeCodedBits[(NUM_STATES/2) + butterfly][0], codedBits, n);
 
             METRIC_TYPE b[2];
-            b[0] = state->nodeMetricsA[butterfly] + edgeMetrics[state->edgeCodedBits[butterfly][1]];
-            b[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + edgeMetrics[state->edgeCodedBits[(NUM_STATES/2) + butterfly][1]];
+            b[0] = state->nodeMetricsA[butterfly] + calcHammingDist(state->edgeCodedBits[butterfly][1], codedBits, n);
+            b[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + calcHammingDist(state->edgeCodedBits[(NUM_STATES/2) + butterfly][1], codedBits, n);
 
             //It is essential to perform these operations without computing the index to select once
             //and then using that intermediate index to select both the metric and traceback
