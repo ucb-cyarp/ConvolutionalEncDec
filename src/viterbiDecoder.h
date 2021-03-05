@@ -111,7 +111,7 @@ typedef struct{
     METRIC_TYPE (* restrict nodeMetricsNext)[NUM_STATES];
     TRACEBACK_TYPE (* restrict traceBackNext)[NUM_STATES];
 
-    int iteration; //Used to track when to start making traceback decisions
+    unsigned int iteration; //Used to track when to start making traceback decisions
     uint8_t decodeCarryOver;
     uint8_t decodeCarryOverCount;
 

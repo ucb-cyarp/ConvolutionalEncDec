@@ -67,20 +67,20 @@ void resetViterbiDecoderHardButterflyk1(viterbiHardState_t* state){
 int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* restrict codedSegments, uint8_t* restrict uncoded, int segmentsIn, bool last){
     int segmentsOut = 0;
 
-    for(int i = 0; i<segmentsIn; i++){
+    for(unsigned int i = 0; i<segmentsIn; i++){
         uint8_t codedBits = codedSegments[i];
         // printf("Coded Segment: %2d, Seg: 0x%x\n", i, codedBits);
 
         METRIC_TYPE newMetrics[NUM_STATES];
         TRACEBACK_TYPE newTraceback[NUM_STATES];
 
-        int tracebackByteIdx = (state->iteration*k)/8;
+        unsigned int tracebackByteIdx = (state->iteration*k)/8;
 
         uint8_t (* restrict tracebackBuf)[NUM_STATES] = &(state->tracebackBufs[tracebackByteIdx]);
         uint8_t tracebackBuf2[NUM_STATES];
 
         //Trellis Itteration
-        for(int butterfly = 0; butterfly<(NUM_STATES/2); butterfly++){
+        for(unsigned int butterfly = 0; butterfly<(NUM_STATES/2); butterfly++){
             //Implement the 2 butterfly
             METRIC_TYPE a[2];
             a[0] = state->nodeMetricsA[butterfly] + calcHammingDist(state->edgeCodedBits[butterfly][0], codedBits, n);
@@ -114,13 +114,13 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             // printf("Min Path: %2d, Src Node: %2d Traceback: 0x%lx\n", minPathEdgeInIdx, minPathSrcNodeIdx, newTB);
         }
 
-        for(int idx = 0; idx<NUM_STATES; idx++){
+        for(unsigned int idx = 0; idx<NUM_STATES; idx++){
             (*tracebackBuf)[idx] = tracebackBuf2[idx];
         }
 
         //Perform the shuffle
         //Is an interleaving operation
-        for(int idx = 0; idx<NUM_STATES/2; idx++){
+        for(unsigned int idx = 0; idx<NUM_STATES/2; idx++){
             state->nodeMetricsA[idx*2] = newMetrics[idx];
             state->nodeMetricsA[idx*2+1] = newMetrics[NUM_STATES/2 + idx];
         }
@@ -134,30 +134,30 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
     //TODO: Support returning the reaminder of traceback after block traceback implemented
     if(last){
         //Shift the last round of tracebacks into their final positions (allows us to handle the last traceback index without more conditionals and should be trivially vectorizable)
-        int lastTracebackByteIdx = ((state->iteration-1)*k)/8; //Byte containing last recorder bit idx.
-        int numberBitsRecordedInLast = state->iteration*k - lastTracebackByteIdx*8; //Number of bits recordeded - bits recorded in previous bytes (lastTracebackByteIdx is indexed from 0 and also represents the number of full bytes before the last one)
-        int remainingShift = 8-numberBitsRecordedInLast;
+        unsigned int lastTracebackByteIdx = ((state->iteration-1)*k)/8; //Byte containing last recorder bit idx.
+        unsigned int numberBitsRecordedInLast = state->iteration*k - lastTracebackByteIdx*8; //Number of bits recordeded - bits recorded in previous bytes (lastTracebackByteIdx is indexed from 0 and also represents the number of full bytes before the last one)
+        unsigned int remainingShift = 8-numberBitsRecordedInLast;
         for(int i = 0; i<NUM_STATES; i++){
             state->tracebackBufs[lastTracebackByteIdx][i] = state->tracebackBufs[lastTracebackByteIdx][i] << remainingShift;
         }
 
         //The number of traceback itterations is state->iteration-1
-        int numPaddingSegments = S;
+        unsigned int numPaddingSegments = S;
 
         //Select the terminated state
         uint8_t decodedLastState = 0;
 
         //Traceback padding segments
-        for(int i = 0; i<numPaddingSegments; i++){
-            int byteIdx = ((state->iteration-1-i)*k)/8;
-            int segmentInByte = (((state->iteration-1-i)*k)%8)/k;
-            int segmentInByteBitIdx = 7-segmentInByte*k;
+        for(unsigned int i = 0; i<numPaddingSegments; i++){
+            unsigned int byteIdx = ((state->iteration-1-i)*k)/8;
+            unsigned int segmentInByte = (((state->iteration-1-i)*k)%8)/k;
+            unsigned int segmentInByteBitIdx = 7-segmentInByte*k;
 
             //Given a node index, we need to find the index this index is stored in before the reshuffeling (interleaving)
             //The node would be in a position before interleaving.  The group would be determined by the lower k LSbs
             //The position in the group would be determined by the remaining bits.  By right rotationally shifting the index
             //we get the stored position
-            int storedTracebackNodeIdx = ROTATE_RIGHT(decodedLastState, 1, k*S);
+            unsigned int storedTracebackNodeIdx = ROTATE_RIGHT(decodedLastState, 1, k*S);
             uint8_t decision = (state->tracebackBufs[byteIdx][storedTracebackNodeIdx] >> segmentInByteBitIdx) & (POW2(k)-1);
 
             //We do not store the decoded bits since they are padding.  If we did, it would be the k LSbs of the decoded state
@@ -167,25 +167,25 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         }
 
         //How many bytes are expected
-        int lastDecodedByteIdx = (state->iteration-numPaddingSegments-1)*k/8;
+        unsigned int lastDecodedByteIdx = (state->iteration-numPaddingSegments-1)*k/8;
         uncoded[lastDecodedByteIdx] = 0;
 
         //Zero out the last byte of the returned message since it may be partially filled
         //The other 
 
-        for(int i = numPaddingSegments; i<state->iteration; i++){
+        for(unsigned int i = numPaddingSegments; i<state->iteration; i++){
             //Same routine as before except that we do now record the traceback
-            int byteIdx = ((state->iteration-1-i)*k)/8;
-            int segmentInByte = (((state->iteration-1-i)*k)%8)/k;
-            int segmentInByteBitIdx = 7-segmentInByte*k;
+            unsigned int byteIdx = ((state->iteration-1-i)*k)/8;
+            unsigned int segmentInByte = (((state->iteration-1-i)*k)%8)/k;
+            unsigned int segmentInByteBitIdx = 7-segmentInByte*k;
 
-            int storedTracebackNodeIdx = ROTATE_RIGHT(decodedLastState, 1, k*S);
+            unsigned int storedTracebackNodeIdx = ROTATE_RIGHT(decodedLastState, 1, k*S);
             uint8_t decision = (state->tracebackBufs[byteIdx][storedTracebackNodeIdx] >> segmentInByteBitIdx) & (POW2(k)-1);
 
             //Get the decoded byte idx.  Because we are tracing back, we get the end of the message first
             //The last byte of the message may be partially filled
-            int decodedSegmentIdx = state->iteration-1-i;
-            int decodedByteIdx = decodedSegmentIdx*k/8;
+            unsigned int decodedSegmentIdx = state->iteration-1-i;
+            unsigned int decodedByteIdx = decodedSegmentIdx*k/8;
 
             uint8_t decodedBits = decodedLastState & (POW2(k)-1);
 
