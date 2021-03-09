@@ -85,7 +85,7 @@
  */
 typedef struct{
     //Code Configuration
-    EDGE_METRIC_INDEX_TYPE edgeCodedBits[NUM_STATES][POW2(k)];
+    EDGE_METRIC_INDEX_TYPE edgeCodedBits[POW2(k)][NUM_STATES];
     //This contains the coded bits corresponding to the given endge.
     //There is one entry for each edge with the ith edge of the jth node having index
     //j*2^k+i in this array.

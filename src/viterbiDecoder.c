@@ -24,13 +24,13 @@ void viterbiInit(viterbiHardState_t* state){
 
     // printf("Decoder Trellis Init\n");
 
-    for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
-        for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
+    for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
+        for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
             //Use the convolutional encoder functions to derive what coded segment corresponds to each edge
             resetConvEncoder(&tmpEncoder);
             tmpEncoder.tappedDelay = stateInd;
-            state->edgeCodedBits[stateInd][edgeInd] = convEncOneInput(&tmpEncoder, edgeInd);
-            // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, state->edgeCodedBits[stateInd][edgeInd]);
+            state->edgeCodedBits[edgeInd][stateInd] = convEncOneInput(&tmpEncoder, edgeInd);
+            // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, state->edgeCodedBits[edgeInd][stateInd]);
         }
     }
 }
@@ -90,7 +90,7 @@ int viterbiDecoderHard(viterbiHardState_t* restrict state, uint8_t* restrict cod
                 int srcNodeIdx = dstState/POW2(k) + edgeIn*POW2((S-1)*k);
                 METRIC_TYPE srcMetric = (*state->nodeMetricsCur)[srcNodeIdx];
 
-                int edgeMetricIdx = state->edgeCodedBits[srcNodeIdx][edgeOut];
+                int edgeMetricIdx = state->edgeCodedBits[edgeOut][srcNodeIdx];
 
                 pathMetrics[edgeIn] = srcMetric + edgeMetrics[edgeMetricIdx];
 

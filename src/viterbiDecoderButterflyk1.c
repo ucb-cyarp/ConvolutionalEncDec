@@ -15,8 +15,8 @@ void viterbiInitButterflyk1(viterbiHardState_t* state){
     // printf("Decoder Trellis Init\n");
     printf("Specialized Viterbi Decoder for k=1\n");
 
-    for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
-        for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
+    for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
+        for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
             //Use the convolutional encoder functions to derive what coded segment corresponds to each edge
             resetConvEncoder(&tmpEncoder);
             tmpEncoder.tappedDelay = stateInd;
@@ -24,7 +24,7 @@ void viterbiInitButterflyk1(viterbiHardState_t* state){
             //Edit. actually, don't do thios because having the butterflies interleaved works better for vectorization
             // int newInd = ROTATE_RIGHT(stateInd, k, k*S);
             int newInd = stateInd;
-            state->edgeCodedBits[newInd][edgeInd] = convEncOneInput(&tmpEncoder, edgeInd);
+            state->edgeCodedBits[edgeInd][newInd] = convEncOneInput(&tmpEncoder, edgeInd);
         }
     }
 }
@@ -83,12 +83,12 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         for(unsigned int butterfly = 0; butterfly<(NUM_STATES/2); butterfly++){
             //Implement the 2 butterfly
             METRIC_TYPE a[2];
-            a[0] = state->nodeMetricsA[butterfly] + calcHammingDist(state->edgeCodedBits[butterfly][0], codedBits, n);
-            a[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + calcHammingDist(state->edgeCodedBits[(NUM_STATES/2) + butterfly][0], codedBits, n);
+            a[0] = state->nodeMetricsA[butterfly] + calcHammingDist(state->edgeCodedBits[0][butterfly], codedBits, n);
+            a[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + calcHammingDist(state->edgeCodedBits[0][(NUM_STATES/2) + butterfly], codedBits, n);
 
             METRIC_TYPE b[2];
-            b[0] = state->nodeMetricsA[butterfly] + calcHammingDist(state->edgeCodedBits[butterfly][1], codedBits, n);
-            b[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + calcHammingDist(state->edgeCodedBits[(NUM_STATES/2) + butterfly][1], codedBits, n);
+            b[0] = state->nodeMetricsA[butterfly] + calcHammingDist(state->edgeCodedBits[1][butterfly], codedBits, n);
+            b[1] = state->nodeMetricsA[(NUM_STATES/2) + butterfly] + calcHammingDist(state->edgeCodedBits[1][(NUM_STATES/2) + butterfly], codedBits, n);
 
             //It is essential to perform these operations without computing the index to select once
             //and then using that intermediate index to select both the metric and traceback

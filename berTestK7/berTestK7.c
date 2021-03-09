@@ -94,7 +94,10 @@ int main(int argc, char* argv[]){
     //[1.104553e-03, 5.016878e-05, 1.711085e-06].
     double snr[] = {-5, -4, -3};
     double uncodedBer[] = {5.585640e-02, 3.716174e-02, 2.262231e-02};
-    double expectedCodedBer[] = {5.295410e-03, 5.421997e-04, 3.385010e-05};
+    //Traceback Length 5*K
+    // double expectedCodedBer[] = {5.295410e-03, 5.421997e-04, 3.385010e-05};
+    //Full Traceback Len
+    double expectedCodedBer[] = {4.765898e-03, 5.184082e-04, 3.499023e-05};
     int numConfigs = sizeof(snr)/sizeof(snr[0]);
 
     printf("** SNR is for 4 Samples Per Symbol **\n");
