@@ -78,6 +78,7 @@
 #endif
 
 #define TRACEBACK_BYTES ((TRACEBACK_BUFFER_LEN+S*k)/8 + 1) //+1 to handle non-multiple of 8 in preproecessor.  TODO: Implement proper rounding
+#define TRACEBACK_CHUNKS (TRACEBACK_BUFFER_LEN+S+1)
 
 /**
  * State for the viterbi decoder between calls
@@ -121,7 +122,7 @@ typedef struct{
     //in time (which helps with vectorization)
     //When traceback occurs, the traceback cursor is reset
     //Circular buffering and wraparound checking is therefore not required
-    uint8_t tracebackBufs[TRACEBACK_BYTES][NUM_STATES];
+    uint8_t tracebackBufs[TRACEBACK_CHUNKS][NUM_STATES];
 } viterbiHardState_t;
 
 /**
