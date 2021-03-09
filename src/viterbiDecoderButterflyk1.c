@@ -125,6 +125,20 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             state->nodeMetricsA[idx*2+1] = newMetrics[NUM_STATES/2 + idx];
         }
 
+        if(state->iteration%8 == 7){
+            //Perform the shuffle for the traceback
+            uint8_t tracebackBuf2[NUM_STATES];
+
+            for(unsigned int idx = 0; idx<NUM_STATES/2; idx++){
+                tracebackBuf2[idx*2] = (*tracebackBuf)[idx];
+                tracebackBuf2[idx*2+1] = (*tracebackBuf)[NUM_STATES/2 + idx];
+            }
+
+            for(unsigned int idx = 0; idx<NUM_STATES; idx++){
+                (*tracebackBuf)[idx] = tracebackBuf2[idx];
+            }
+        }
+
         (state->iteration)++;
 
         //TODO: Implement block traceback
@@ -139,6 +153,21 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         unsigned int remainingShift = 8-numberBitsRecordedInLast;
         for(int i = 0; i<NUM_STATES; i++){
             state->tracebackBufs[lastTracebackByteIdx][i] = state->tracebackBufs[lastTracebackByteIdx][i] << remainingShift;
+        }
+
+        //TODO: Shuffle 
+        if(state->iteration%8 != 0){
+            //Perform the shuffle for the traceback
+            uint8_t tracebackBuf2[NUM_STATES];
+
+            for(unsigned int idx = 0; idx<NUM_STATES/2; idx++){
+                tracebackBuf2[idx*2] = state->tracebackBufs[lastTracebackByteIdx][idx];
+                tracebackBuf2[idx*2+1] = state->tracebackBufs[lastTracebackByteIdx][NUM_STATES/2 + idx];
+            }
+
+            for(unsigned int idx = 0; idx<NUM_STATES; idx++){
+                state->tracebackBufs[lastTracebackByteIdx][idx] = tracebackBuf2[idx];
+            }
         }
 
         //The number of traceback itterations is state->iteration-1
@@ -157,7 +186,7 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             //The node would be in a position before interleaving.  The group would be determined by the lower k LSbs
             //The position in the group would be determined by the remaining bits.  By right rotationally shifting the index
             //we get the stored position
-            unsigned int storedTracebackNodeIdx = ROTATE_RIGHT(decodedLastState, 1, k*S);
+            unsigned int storedTracebackNodeIdx = decodedLastState;
             uint8_t decision = (state->tracebackBufs[byteIdx][storedTracebackNodeIdx] >> segmentInByteBitIdx) & (POW2(k)-1);
 
             //We do not store the decoded bits since they are padding.  If we did, it would be the k LSbs of the decoded state
@@ -179,7 +208,7 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             unsigned int segmentInByte = (((state->iteration-1-i)*k)%8)/k;
             unsigned int segmentInByteBitIdx = 7-segmentInByte*k;
 
-            unsigned int storedTracebackNodeIdx = ROTATE_RIGHT(decodedLastState, 1, k*S);
+            unsigned int storedTracebackNodeIdx = decodedLastState;
             uint8_t decision = (state->tracebackBufs[byteIdx][storedTracebackNodeIdx] >> segmentInByteBitIdx) & (POW2(k)-1);
 
             //Get the decoded byte idx.  Because we are tracing back, we get the end of the message first
