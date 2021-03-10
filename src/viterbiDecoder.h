@@ -36,14 +36,21 @@
 
 #define MAX_PKT_LEN_SEGMENTS (MAX_PKT_LEN_UNCODED_BITS + S)
 
-#if MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(8)
+#if k==1
+    //Using renormalization
+    //in the k=1 implementation
     #define METRIC_TYPE uint8_t
-#elif MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(16)
-    #define METRIC_TYPE uint16_t
-#elif MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(32)
-    #define METRIC_TYPE uint32_t
+    #define METRIC_MAX UINT8_MAX
 #else
-    #define METRIC_TYPE uint64_t
+    #if MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(8)
+        #define METRIC_TYPE uint8_t
+    #elif MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(16)
+        #define METRIC_TYPE uint16_t
+    #elif MAX_EDGE_WEIGHT*MAX_PKT_LEN_SEGMENTS <= POW2(32)
+        #define METRIC_TYPE uint32_t
+    #else
+        #define METRIC_TYPE uint64_t
+    #endif
 #endif
 
 //This defines the index of the comparison to be used when evaluating edges.  For 2 codes bits, there are 4 possibilities, 00, 01, 10, 11.

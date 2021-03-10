@@ -118,6 +118,33 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             (*tracebackBuf)[idx] = tracebackBuf2[idx];
         }
 
+        //Find the min path metric
+        //The simple min approach did not vectorize well.  The compiler
+        //inferred a bunch of branching
+        //Instead, will do a tree reduction in stages
+        
+        if(state->iteration%64 == 0){
+            METRIC_TYPE minPathMetric = minMetricGeneric(&newMetrics);
+            //The Compiler is not inlining the call for some reason
+            //However, manually inlining it results in the compier
+            //emitting a lot of conditionals around the outer loop ... 
+            //which is strange.
+            //It may be mucking up the inference the compiler makes
+            //on the outer loop.  The additional conditionals result
+            //in worse performance on my laptop/
+
+            // METRIC_TYPE minPathMetric = newMetrics[0];
+            // for(unsigned int idx = 1; idx<NUM_STATES; idx++){
+            //     if(newMetrics[idx] < minPathMetric){
+            //         minPathMetric = newMetrics[idx];
+            //     }
+            // }
+
+            for(unsigned int idx = 0; idx<NUM_STATES; idx++){
+                newMetrics[idx] = newMetrics[idx] - minPathMetric;
+            }
+        }
+
         //Perform the shuffle
         //Is an interleaving operation
         for(unsigned int idx = 0; idx<NUM_STATES/2; idx++){
@@ -235,3 +262,156 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
 
     return segmentsOut;
 }
+
+//Note: Clang was able to infer the minimum operation in the general C implementation
+//      Clang's implementation had fewer instructions than the explicit tree
+//      reductions implemented below
+// METRIC_TYPE minMetric2(const METRIC_TYPE (*metrics)[2]){
+//     METRIC_TYPE minPathMetric = (*metrics)[0] < (*metrics)[1] ? (*metrics)[0] : (*metrics)[1];
+
+//     return minPathMetric;
+// }
+// METRIC_TYPE minMetric4(const METRIC_TYPE (*metrics)[4]){
+//     METRIC_TYPE minStage5[2];
+//     for(unsigned int idx = 0; idx<2; idx++){
+//         minStage5[idx] = (*metrics)[idx] < (*metrics)[2 + idx] ? (*metrics)[idx] : (*metrics)[2 + idx];
+//     }
+
+//     METRIC_TYPE minPathMetric = minStage5[0] < minStage5[1] ? minStage5[0] : minStage5[1];
+
+//     return minPathMetric;
+// }
+// METRIC_TYPE minMetric8(const METRIC_TYPE (*metrics)[8]){
+//     METRIC_TYPE minStage4[4];
+//     for(unsigned int idx = 0; idx<4; idx++){
+//         minStage4[idx] = (*metrics)[idx] < (*metrics)[4 + idx] ? (*metrics)[idx] : (*metrics)[4 + idx];
+//     }
+
+//     METRIC_TYPE minStage5[2];
+//     for(unsigned int idx = 0; idx<2; idx++){
+//         minStage5[idx] = minStage4[idx] < minStage4[2 + idx] ? minStage4[idx] : minStage4[2 + idx];
+//     }
+
+//     METRIC_TYPE minPathMetric = minStage5[0] < minStage5[1] ? minStage5[0] : minStage5[1];
+
+//     return minPathMetric;
+// }
+// METRIC_TYPE minMetric16(const METRIC_TYPE (*metrics)[16]){
+//     METRIC_TYPE minStage3[8];
+//     for(unsigned int idx = 0; idx<8; idx++){
+//         minStage3[idx] = (*metrics)[idx] < (*metrics)[8 + idx] ? (*metrics)[idx] : (*metrics)[8 + idx];
+//     }
+
+//     METRIC_TYPE minStage4[4];
+//     for(unsigned int idx = 0; idx<4; idx++){
+//         minStage4[idx] = minStage3[idx] < minStage3[4 + idx] ? minStage3[idx] : minStage3[4 + idx];
+//     }
+
+//     METRIC_TYPE minStage5[2];
+//     for(unsigned int idx = 0; idx<2; idx++){
+//         minStage5[idx] = minStage4[idx] < minStage4[2 + idx] ? minStage4[idx] : minStage4[2 + idx];
+//     }
+
+//     METRIC_TYPE minPathMetric = minStage5[0] < minStage5[1] ? minStage5[0] : minStage5[1];
+
+//     return minPathMetric;
+// }
+
+// METRIC_TYPE minMetric32(const METRIC_TYPE (*metrics)[32]){
+//     METRIC_TYPE minStage2[16];
+//     for(unsigned int idx = 0; idx<16; idx++){
+//         minStage2[idx] = (*metrics)[idx] < (*metrics)[16 + idx] ? (*metrics)[idx] : (*metrics)[16 + idx];
+//     }
+
+//     METRIC_TYPE minStage3[8];
+//     for(unsigned int idx = 0; idx<8; idx++){
+//         minStage3[idx] = minStage2[idx] < minStage2[8 + idx] ? minStage2[idx] : minStage2[8 + idx];
+//     }
+
+//     METRIC_TYPE minStage4[4];
+//     for(unsigned int idx = 0; idx<4; idx++){
+//         minStage4[idx] = minStage3[idx] < minStage3[4 + idx] ? minStage3[idx] : minStage3[4 + idx];
+//     }
+
+//     METRIC_TYPE minStage5[2];
+//     for(unsigned int idx = 0; idx<2; idx++){
+//         minStage5[idx] = minStage4[idx] < minStage4[2 + idx] ? minStage4[idx] : minStage4[2 + idx];
+//     }
+
+//     METRIC_TYPE minPathMetric = minStage5[0] < minStage5[1] ? minStage5[0] : minStage5[1];
+
+//     return minPathMetric;
+// }
+// METRIC_TYPE minMetric64(const METRIC_TYPE (*metrics)[64]){
+//     METRIC_TYPE minStage1[32];
+//     for(unsigned int idx = 0; idx<32; idx++){
+//         minStage1[idx] = (*metrics)[idx] < (*metrics)[32 + idx] ? (*metrics)[idx] : (*metrics)[32 + idx];
+//     }
+
+//     METRIC_TYPE minStage2[16];
+//     for(unsigned int idx = 0; idx<16; idx++){
+//         minStage2[idx] = minStage1[idx] < minStage1[16 + idx] ? minStage1[idx] : minStage1[16 + idx];
+//     }
+
+//     METRIC_TYPE minStage3[8];
+//     for(unsigned int idx = 0; idx<8; idx++){
+//         minStage3[idx] = minStage2[idx] < minStage2[8 + idx] ? minStage2[idx] : minStage2[8 + idx];
+//     }
+
+//     METRIC_TYPE minStage4[4];
+//     for(unsigned int idx = 0; idx<4; idx++){
+//         minStage4[idx] = minStage3[idx] < minStage3[4 + idx] ? minStage3[idx] : minStage3[4 + idx];
+//     }
+
+//     METRIC_TYPE minStage5[2];
+//     for(unsigned int idx = 0; idx<2; idx++){
+//         minStage5[idx] = minStage4[idx] < minStage4[2 + idx] ? minStage4[idx] : minStage4[2 + idx];
+//     }
+
+//     METRIC_TYPE minPathMetric = minStage5[0] < minStage5[1] ? minStage5[0] : minStage5[1];
+
+//     return minPathMetric;
+// }
+
+inline METRIC_TYPE minMetricGeneric(const METRIC_TYPE (*metrics)[NUM_STATES]){
+    //Note: the compiler was able to infer this as a min reduction
+    //It looks like the key is to set the min to the first element
+    //then itterate over the rest.  It makes it clear it is a min recuction.
+    //Setting the min initially to be UINT8_MAX appears to leave the compiler
+    //wondering if this is indeed a min reduction even though all metrics
+    //must be less than UINT8_MAX.  Realizing that, however, would require
+    //the compiler to realize UINT8_MAX is the max value the type can hold.
+    METRIC_TYPE minPathMetric = (*metrics)[0];
+    for(unsigned int idx = 1; idx<NUM_STATES; idx++){
+        if((*metrics)[idx] < minPathMetric){
+            minPathMetric = (*metrics)[idx];
+        }
+    }
+
+    return minPathMetric;
+}
+
+// inline METRIC_TYPE minMetric(const METRIC_TYPE (*metrics)[NUM_STATES]){
+//     // #if NUM_STATES==2
+//     //     return minMetric2(metrics);
+//     // #elif NUM_STATES==4
+//     //     return minMetric4(metrics);
+//     // #elif NUM_STATES==8
+//     //     return minMetric8(metrics);
+//     // #elif NUM_STATES==16
+//     //     return minMetric16(metrics);
+//     // #elif NUM_STATES==32
+//     //     return minMetric32(metrics);
+//     // #elif NUM_STATES==64
+//     //     return minMetric64(metrics);
+//     // #else
+//     //     #warning Using generic min metric
+//     //     return minMetricGeneric(metrics);
+//     // #endif
+    
+//     //Clang properly inferred the min reduction
+//     //for the generic description
+//     //In fact, it contains fewer instructions
+//     //than the tree reductions
+//     return minMetricGeneric(metrics);
+// }
