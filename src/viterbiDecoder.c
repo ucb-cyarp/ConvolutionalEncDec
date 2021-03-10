@@ -12,6 +12,20 @@ int viterbiConfigCheck(){
         exit(1);
     }
 
+    #ifdef USE_POLY_SYMMETRY
+        if(k == 1){
+            //Need to check generator polynomials to make sure they all depend on the input bit
+            //Only relevent for rate 1/2 codes
+
+            for(int i = 0; i<n; i++){
+                if(!((g[i] >> (K-1)) & 1) || !(g[i] & 1)){
+                    printf("Polynomial %d does not depend on the input bit and the last bit, therefore polynomial symmetry cannot be used\n", i);
+                    exit(1);
+                }
+            }
+        }
+    #endif
+
     return 0;
 }
 

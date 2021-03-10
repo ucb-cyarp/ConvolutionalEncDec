@@ -30,6 +30,12 @@
 #define FORCE_NO_POPCNT_DECODER
 // #define SIMPLE_MIN
 
+//If true, k=1 specialized decoder will simplify the butterfly computation
+//by relying on the input bit being included in each generator
+//If this is not true for the generator polynomial being used, do NOT
+//enable this
+#define USE_POLY_SYMMETRY
+
 //TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?
 
 #define MAX_EDGE_WEIGHT (n) //With hamming distance as the metric, the max difference occurs if all bits are different
@@ -92,6 +98,9 @@
  */
 typedef struct{
     //Code Configuration
+    #ifdef USE_POLY_SYMMETRY
+        EDGE_METRIC_INDEX_TYPE edgeCodedBitsSymm[NUM_STATES/2];
+    #endif
     EDGE_METRIC_INDEX_TYPE edgeCodedBits[POW2(k)][NUM_STATES];
     //This contains the coded bits corresponding to the given endge.
     //There is one entry for each edge with the ith edge of the jth node having index
