@@ -34,6 +34,8 @@
 //by relying on the input bit being included in each generator
 //If this is not true for the generator polynomial being used, do NOT
 //enable this
+//See "Viterbi Decoding Techniques for the TMS320C55x DSP Generation" by Henry Hendrix
+//for annother explanation.
 #define USE_POLY_SYMMETRY
 
 //TODO: Look into re-normalizing metrics.  Can we set an upper bound on the difference between nodes in the trellis?
