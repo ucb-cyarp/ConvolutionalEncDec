@@ -121,11 +121,21 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             //It is essential to perform these operations without computing the index to select once
             //and then using that intermediate index to select both the metric and traceback
             //That extra level of indirection causes the compiler (at least clang) to not autovectorize this loop
-            METRIC_TYPE aMetric = a[0] <= a[1] ? a[0] : a[1];
-            METRIC_TYPE bMetric = b[0] <= b[1] ? b[0] : b[1];
+            bool aDecision = a[0] > a[1];
+            bool bDecision = b[0] > b[1];
+
+            METRIC_TYPE aMetric = a[0];
+            METRIC_TYPE bMetric = b[0];
+
+            if(aDecision){
+                aMetric = a[1];
+            }
+            if(bDecision){
+                bMetric = b[1];
+            }
             
-            uint8_t aTraceback = a[0] <= a[1] ? 0 : 1;
-            uint8_t bTraceback = b[0] <= b[1] ? 0 : 1;
+            uint8_t aTraceback = aDecision;
+            uint8_t bTraceback = bDecision;
 
             newMetrics[butterfly] = aMetric;
             newMetrics[(NUM_STATES/2) + butterfly] = bMetric;
