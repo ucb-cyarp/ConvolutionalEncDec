@@ -72,15 +72,16 @@
     #define EDGE_METRIC_INDEX_TYPE uint64_t 
 #endif
 
-#if TRACEBACK_LEN*k <= 8
-    #define TRACEBACK_TYPE uint8_t
-#elif TRACEBACK_LEN*k <= 16
-    #define TRACEBACK_TYPE uint16_t
-#elif TRACEBACK_LEN*k <= 32
-    #define TRACEBACK_TYPE uint32_t
-#else
-    #define TRACEBACK_TYPE uint64_t
-#endif
+#define TRACEBACK_TYPE uint8_t
+// #if TRACEBACK_LEN*k <= 8
+//     #define TRACEBACK_TYPE uint8_t
+// #elif TRACEBACK_LEN*k <= 16
+//     #define TRACEBACK_TYPE uint16_t
+// #elif TRACEBACK_LEN*k <= 32
+//     #define TRACEBACK_TYPE uint32_t
+// #else
+//     #define TRACEBACK_TYPE uint64_t
+// #endif
 
 #if k==1
     #define VITERBI_DECODER_HARD viterbiDecoderHardButterflyk1
