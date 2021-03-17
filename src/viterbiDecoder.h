@@ -132,6 +132,7 @@ typedef struct{
     TRACEBACK_TYPE (* restrict traceBackNext)[NUM_STATES];
 
     unsigned int iteration; //Used to track when to start making traceback decisions
+    unsigned int renormCounter;
     uint8_t decodeCarryOver;
     uint8_t decodeCarryOverCount;
 

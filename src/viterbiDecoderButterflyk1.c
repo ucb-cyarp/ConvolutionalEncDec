@@ -74,6 +74,7 @@ void resetViterbiDecoderHardButterflyk1(viterbiHardState_t* state){
     // }
 
     state->iteration = 0;
+    state->renormCounter = 0;
     state->decodeCarryOver = 0;
     state->decodeCarryOverCount = 0;
 }
@@ -155,7 +156,7 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         //inferred a bunch of branching
         //Instead, will do a tree reduction in stages
         
-        if(state->iteration%64 == 0){
+        if(state->renormCounter >= 120){
             // METRIC_TYPE minPathMetric = minMetricGeneric(&newMetrics);
             //The Compiler is not inlining the call for some reason
             //However, manually inlining it results in the compier
@@ -175,6 +176,10 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             for(unsigned int idx = 0; idx<NUM_STATES; idx++){
                 newMetrics[idx] = newMetrics[idx] - minPathMetric;
             }
+
+            state->renormCounter = 0;
+        }else{
+            (state->renormCounter)++;
         }
 
         for(unsigned int idx = 0; idx<NUM_STATES; idx++){
@@ -235,8 +240,7 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
 
             //Get the decoded byte idx.  Because we are tracing back, we get the end of the message first
             //The last byte of the message may be partially filled
-            unsigned int decodedSegmentIdx = state->iteration-1-i;
-            unsigned int decodedByteIdx = decodedSegmentIdx*k/8;
+            unsigned int decodedByteIdx = wordIdx*k/8;
 
             uint8_t decodedBits = decodedLastState & (POW2(k)-1);
 
