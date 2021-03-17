@@ -100,9 +100,9 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         for(unsigned int butterfly = 0; butterfly<(NUM_STATES/2); butterfly++){
             //Implement the 2 butterfly
             #ifdef USE_POLY_SYMMETRY
-                // uint8_t edgeMetric = calcHammingDist(state->edgeCodedBitsSymm[butterfly], codedBits, n);
-                uint8_t xorValue = state->edgeCodedBitsSymm[butterfly] ^ codedBits;
-                uint8_t edgeMetric = (xorValue & 1) + ((xorValue >> 1)&1);
+                uint8_t edgeMetric = calcHammingDist(state->edgeCodedBitsSymm[butterfly], codedBits, n);
+                // uint8_t xorValue = state->edgeCodedBitsSymm[butterfly] ^ codedBits;
+                // uint8_t edgeMetric = (xorValue & 1) + ((xorValue >> 1)&1);
                 uint8_t edgeMetricComplement = n-edgeMetric;
 
                 METRIC_TYPE a[2];
@@ -114,12 +114,12 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
                 b[1] = state->nodeMetricsA[NUM_STATES/2 + butterfly] + edgeMetric;
             #else
                 METRIC_TYPE a[2];
-                a[0] = shuffledMetrics[butterfly*2] + calcHammingDist(state->edgeCodedBits[0][butterfly*2], codedBits, n);
-                a[1] = shuffledMetrics[butterfly*2+1] + calcHammingDist(state->edgeCodedBits[0][butterfly*2+1], codedBits, n);
+                a[0] = state->nodeMetricsA[butterfly*2] + calcHammingDist(state->edgeCodedBits[0][butterfly*2], codedBits, n);
+                a[1] = state->nodeMetricsA[butterfly*2+1] + calcHammingDist(state->edgeCodedBits[0][butterfly*2+1], codedBits, n);
 
                 METRIC_TYPE b[2];
-                b[0] = shuffledMetrics[butterfly*2] + calcHammingDist(state->edgeCodedBits[1][butterfly*2], codedBits, n);
-                b[1] = shuffledMetrics[butterfly*2+1] + calcHammingDist(state->edgeCodedBits[1][butterfly*2+1], codedBits, n);
+                b[0] = state->nodeMetricsA[butterfly*2] + calcHammingDist(state->edgeCodedBits[1][butterfly*2], codedBits, n);
+                b[1] = state->nodeMetricsA[butterfly*2+1] + calcHammingDist(state->edgeCodedBits[1][butterfly*2+1], codedBits, n);
             #endif
 
             //It is essential to perform these operations without computing the index to select once
@@ -156,7 +156,7 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
         //Instead, will do a tree reduction in stages
         
         if(state->iteration%64 == 0){
-            METRIC_TYPE minPathMetric = minMetricGeneric(&newMetrics);
+            // METRIC_TYPE minPathMetric = minMetricGeneric(&newMetrics);
             //The Compiler is not inlining the call for some reason
             //However, manually inlining it results in the compier
             //emitting a lot of conditionals around the outer loop ... 
@@ -165,12 +165,12 @@ int viterbiDecoderHardButterflyk1(viterbiHardState_t* restrict state, uint8_t* r
             //on the outer loop.  The additional conditionals result
             //in worse performance on my laptop/
 
-            // METRIC_TYPE minPathMetric = newMetrics[0];
-            // for(unsigned int idx = 1; idx<NUM_STATES; idx++){
-            //     if(newMetrics[idx] < minPathMetric){
-            //         minPathMetric = newMetrics[idx];
-            //     }
-            // }
+            METRIC_TYPE minPathMetric = newMetrics[0];
+            for(unsigned int idx = 1; idx<NUM_STATES; idx++){
+                if(newMetrics[idx] < minPathMetric){
+                    minPathMetric = newMetrics[idx];
+                }
+            }
 
             for(unsigned int idx = 0; idx<NUM_STATES; idx++){
                 newMetrics[idx] = newMetrics[idx] - minPathMetric;

@@ -118,8 +118,8 @@ typedef struct{
     //Decoder State
     //Using 2 arrays which will be swapped in each itteration
     //Allows us to write to a des
-    METRIC_TYPE nodeMetricsA[NUM_STATES];
-    TRACEBACK_TYPE traceBackA[NUM_STATES];
+    METRIC_TYPE nodeMetricsA[NUM_STATES] __attribute__ ((aligned (64)));
+    TRACEBACK_TYPE traceBackA[NUM_STATES] __attribute__ ((aligned (64)));
     METRIC_TYPE nodeMetricsB[NUM_STATES];
     TRACEBACK_TYPE traceBackB[NUM_STATES];
 
@@ -141,7 +141,7 @@ typedef struct{
     //in time (which helps with vectorization)
     //When traceback occurs, the traceback cursor is reset
     //Circular buffering and wraparound checking is therefore not required
-    TRACEBACK_TYPE tracebackBufs[(TRACEBACK_BUFFER_LEN+S*k)][NUM_STATES];
+    TRACEBACK_TYPE tracebackBufs[(TRACEBACK_BUFFER_LEN+S*k)][NUM_STATES] __attribute__ ((aligned (64)));
 } viterbiHardState_t;
 
 /**
