@@ -141,7 +141,7 @@ typedef struct{
     //in time (which helps with vectorization)
     //When traceback occurs, the traceback cursor is reset
     //Circular buffering and wraparound checking is therefore not required
-    TRACEBACK_TYPE tracebackBufs[TRACEBACK_BYTES][NUM_STATES];
+    TRACEBACK_TYPE tracebackBufs[(TRACEBACK_BUFFER_LEN+S*k)][NUM_STATES];
 } viterbiHardState_t;
 
 /**
