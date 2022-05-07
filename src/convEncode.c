@@ -3,31 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void tappedDelayInsert(uint8_t* tappedDelay, int tappedDelayCursor, uint8_t input){
-    tappedDelay[tappedDelayCursor] = input;
-    tappedDelay[tappedDelayCursor+k*K] = input;
-}
-
-void tappedDelayStep(int* tappedDelayCursor){
-    int oldInd = *tappedDelayCursor;
-    if(oldInd == 0){
-        *tappedDelayCursor = k*K-1;
-    }else{
-        *tappedDelayCursor = oldInd-1;
-    }
-}
-
-void setConvEncoderState(convEncoderState_t* state, int tappedDelayStateRequested){
-    for(int i = 0; i<k*K; i++){
-        tappedDelayInsert(state->tappedDelay, i, tappedDelayStateRequested%2);
-        tappedDelayStateRequested = tappedDelayStateRequested >> 1;
-    }
-    state->tappedDelayCursor = 0; //This was set to the LSb of tappedDelayStateRequested
-    tappedDelayStep(&(state->tappedDelayCursor));
-}
-
 void resetConvEncoder(convEncoderState_t* state){
-    setConvEncoderState(state, STARTING_STATE);
+    state->tappedDelay = STARTING_STATE;
 
     state->remainingUncoded = 0;
     state->remainingUncodedCount = 0;
@@ -35,7 +12,7 @@ void resetConvEncoder(convEncoderState_t* state){
 
 void initConvEncoder(convEncoderState_t* state){
     for(int i = 0; i<n; i++){
-        unpackBigToLittleEndian(state->polynomials[i], k*K, g[i]);
+        state->polynomials[i] = bitReverseGenerator(g[i]);
     }
 }
 
@@ -46,10 +23,11 @@ int convEncOneInput(convEncoderState_t* state, uint8_t bitsToShiftIn){
     #if k!=1
         for(int j = 0; j<(k-1); j++){
             //Shift in the MSBs
+            //TODO: Revisit after reciving new copy of Hacker's delight
+            //      Need to bit reverse k bit segment before shifting in
             uint8_t bitToShiftIn = (bitsToShiftIn>>(remainingBits-1))%2;
             remainingBits--;
-            tappedDelayInsert(state->tappedDelay, state->tappedDelayCursor, bitToShiftIn);
-            tappedDelayStep(&(state->tappedDelayCursor));
+            state->tappedDelay = (state->tappedDelay << 1) | bitToShiftIn;
         }
     #endif
     //Perform the final shift in but not adjusting the cursor (which points to the next position to insert into)
@@ -57,13 +35,10 @@ int convEncOneInput(convEncoderState_t* state, uint8_t bitsToShiftIn){
         //Shift in the MSBs
         uint8_t bitToShiftIn = bitsToShiftIn%2;
         //remainingBits--; Not needed
-        tappedDelayInsert(state->tappedDelay, state->tappedDelayCursor, bitToShiftIn);
+        state->tappedDelay = (state->tappedDelay << 1) | bitToShiftIn;
     }
 
     uint8_t codedSegment = computeEncOutputSegment(state);
-
-    //Perform the final shift of the tapped delay cursor
-    tappedDelayStep(&(state->tappedDelayCursor));
 
     return codedSegment;
 }
@@ -97,8 +72,7 @@ int convEnc(convEncoderState_t* state, uint8_t* uncoded, uint8_t* codedSegments,
                 //Shift in the MSBs
                 uint8_t bitToShiftIn = (workingBits>>(remainingBits-1))%2;
                 remainingBits--;
-                tappedDelayInsert(state->tappedDelay, state->tappedDelayCursor, bitToShiftIn);
-                tappedDelayStep(&(state->tappedDelayCursor));
+                state->tappedDelay = (state->tappedDelay << 1) | bitToShiftIn;
             }
         #endif
         //Perform the final shift in but not adjusting the cursor (which points to the next position to insert into)
@@ -110,17 +84,17 @@ int convEnc(convEncoderState_t* state, uint8_t* uncoded, uint8_t* codedSegments,
                 remainingBits = 8;
             }
 
+            //TODO: Basically performing bit reverse of input 1 bit at a time.  Revisit after recieving Hacker's Delight
+            //May be OK since need to shift in one bit at a time before computing output.  
+
             //Shift in the MSBs
             uint8_t bitToShiftIn = (workingBits>>(remainingBits-1))%2;
             remainingBits--;
-            tappedDelayInsert(state->tappedDelay, state->tappedDelayCursor, bitToShiftIn);
+            state->tappedDelay = (state->tappedDelay << 1) | bitToShiftIn;
         }
 
         codedSegments[segmentsOut] = computeEncOutputSegment(state);
         segmentsOut++;
-
-        //Perform the final shift of the tapped delay cursor
-        tappedDelayStep(&(state->tappedDelayCursor));
     }
 
     //Padding
@@ -134,18 +108,14 @@ int convEnc(convEncoderState_t* state, uint8_t* uncoded, uint8_t* codedSegments,
         for(int i = 0; i<S; i++){
             #if k!=1
                 for(int j = 0; j<(k-1); j++){
-                    tappedDelayInsert(state->tappedDelay, state->tappedDelayCursor, 0);
-                    tappedDelayStep(&(state->tappedDelayCursor));
+                    state->tappedDelay = (state->tappedDelay << 1);
                 }
             #endif
 
-            tappedDelayInsert(state->tappedDelay, state->tappedDelayCursor, 0);
+            state->tappedDelay = (state->tappedDelay << 1);
 
             codedSegments[segmentsOut] = computeEncOutputSegment(state);
             segmentsOut++;
-
-            //Perform the final shift of the tapped delay cursor
-            tappedDelayStep(&(state->tappedDelayCursor));
         }
 
         //Reset state for next packet
@@ -160,17 +130,24 @@ int convEnc(convEncoderState_t* state, uint8_t* uncoded, uint8_t* codedSegments,
 }
 
 uint8_t computeEncOutputSegment(convEncoderState_t* state){
-        //Take the dot product mod 2 for each generator, using the current tapped delay cursor.
-        //Circular buffer is implemented so that this is always the full buffer
+        //Take the dot product mod 2 for each generator
         int codedBits[n];
 
-        //TODO: Try swapping the order of these 2 for loops
         for(int genIdx = 0; genIdx<n; genIdx++){
-            int codedBitsWorking = 0;
-            for(int j = 0; j<k*K; j++){ //Need the full vector here
-                codedBitsWorking += state->tappedDelay[state->tappedDelayCursor+j]*state->polynomials[genIdx][j];
-            }
-            codedBits[genIdx] = codedBitsWorking;
+            TAPPED_DELAY_TYPE masked = state->tappedDelay & state->polynomials[genIdx];
+            
+            //TODO try the xor version even if popcnt is present
+            #if __has_builtin(__builtin_popcount)
+                TAPPED_DELAY_TYPE sum = __builtin_popcount(masked);
+                codedBits[genIdx] = sum%2;
+            #else
+                uint8_t parity = 0;
+                for(int i = 0; i<k*K; i++){
+                    parity ^= masked%2;
+                    masked = masked >> 1;
+                }
+                codedBits[genIdx] = parity;
+            #endif
         }
 
         //Output the 0th as the LSb
@@ -181,4 +158,18 @@ uint8_t computeEncOutputSegment(convEncoderState_t* state){
             codedSegment |= (codedBits[j]%2);
         }
         return codedSegment;
+}
+
+TAPPED_DELAY_TYPE bitReverseGenerator(TAPPED_DELAY_TYPE packed){
+    //TODO: Revisit after getting new copy of Hacker's Delight
+    //Since this is only done once as the start of the program, speed is not critical
+
+    TAPPED_DELAY_TYPE rtnVal = 0;
+    for(int i = 0; i<k*K; i++){
+        rtnVal = rtnVal << 1;
+        rtnVal |= packed%2;
+        packed = packed >> 1;
+    }
+
+    return rtnVal;
 }

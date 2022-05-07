@@ -7,10 +7,24 @@
 
 
 int viterbiConfigCheck(){
-    if(sizeof(TRACEBACK_TYPE)*8 < TRACEBACK_LEN){
-        printf("Traceback type cannot accomodate requested traceback length\n");
+    if(STARTING_STATE != 0){
+        printf("Currently only support starting state of 0\n");
         exit(1);
     }
+
+    #ifdef USE_POLY_SYMMETRY
+        if(k == 1){
+            //Need to check generator polynomials to make sure they all depend on the input bit
+            //Only relevent for rate 1/2 codes
+
+            for(int i = 0; i<n; i++){
+                if(!((g[i] >> (K-1)) & 1) || !(g[i] & 1)){
+                    printf("Polynomial %d does not depend on the input bit and the last bit, therefore polynomial symmetry cannot be used\n", i);
+                    exit(1);
+                }
+            }
+        }
+    #endif
 
     return 0;
 }
@@ -24,18 +38,18 @@ void viterbiInit(viterbiHardState_t* state){
 
     // printf("Decoder Trellis Init\n");
 
-    for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
-        for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
+    for(int edgeInd = 0; edgeInd < POW2(k); edgeInd++){
+        for(int stateInd = 0; stateInd < NUM_STATES; stateInd++){
             //Use the convolutional encoder functions to derive what coded segment corresponds to each edge
             resetConvEncoder(&tmpEncoder);
-            setConvEncoderState(&tmpEncoder, stateInd);
-            state->edgeCodedBits[stateInd][edgeInd] = convEncOneInput(&tmpEncoder, edgeInd);
-            // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, state->edgeCodedBits[stateInd][edgeInd]);
+            tmpEncoder.tappedDelay = stateInd;
+            state->edgeCodedBits[edgeInd][stateInd] = convEncOneInput(&tmpEncoder, edgeInd);
+            // printf("State: %2d, Edge: %2d, Coded Bits: 0x%x\n", stateInd, edgeInd, state->edgeCodedBits[edgeInd][stateInd]);
         }
     }
 }
 
-int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_t* uncoded, int segmentsIn, bool last){
+int viterbiDecoderHard(viterbiHardState_t* restrict state, uint8_t* restrict codedSegments, uint8_t* restrict uncoded, int segmentsIn, bool last){
     //If the convolutional encoder forces the end of the message to be in the zero state, it allows us to
     //pad the last block with all zero codewords which, since the generating polynomials do not include nots,
     //would simply perpetuate the all zero path.  The metric of this path would not change.
@@ -71,13 +85,13 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
         //Compute the hamming distance for each possible codeword segment
         uint8_t edgeMetrics[POW2(n)];
         for(int j = 0; j<POW2(n); j++){
-            edgeMetrics[j] = calcHammingDist(j, codedBits);
+            edgeMetrics[j] = calcHammingDist(j, codedBits, n);
             // printf("Edge Metric [%d]: %d\n", j, edgeMetrics[j]);
         }
 
-        //TODO: Implement Trellis Itteration
-        METRIC_TYPE* newMetrics = state->nodeMetricsNext;
-        TRACEBACK_TYPE* newTraceback = state->traceBackNext;
+        //Trellis Itteration
+        METRIC_TYPE (* restrict newMetrics)[NUM_STATES] = state->nodeMetricsNext;
+        TRACEBACK_TYPE (* restrict newTraceback)[NUM_STATES] = state->traceBackNext;
         for(int dstState = 0; dstState<NUM_STATES; dstState++){
             //Since we are itterating on the destinations, we will be computing
             //the path metrics for each incoming edge
@@ -88,9 +102,9 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             for(int edgeIn = 0; edgeIn<POW2(k); edgeIn++){
                 //The nodes to select from are DstNodeIdx/(2^k) + i*2^((S-1)*k)
                 int srcNodeIdx = dstState/POW2(k) + edgeIn*POW2((S-1)*k);
-                METRIC_TYPE srcMetric = state->nodeMetricsCur[srcNodeIdx];
+                METRIC_TYPE srcMetric = (*state->nodeMetricsCur)[srcNodeIdx];
 
-                int edgeMetricIdx = state->edgeCodedBits[srcNodeIdx][edgeOut];
+                int edgeMetricIdx = state->edgeCodedBits[edgeOut][srcNodeIdx];
 
                 pathMetrics[edgeIn] = srcMetric + edgeMetrics[edgeMetricIdx];
 
@@ -98,17 +112,17 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             }
 
             //Find the minimum weight path metric
-            int minPathEdgeInIdx = argminPathMetrics(pathMetrics);
+            int minPathEdgeInIdx = argminPathMetrics(&pathMetrics);
             int minPathSrcNodeIdx = dstState/POW2(k) + minPathEdgeInIdx*POW2((S-1)*k);
-            newMetrics[dstState] = pathMetrics[minPathEdgeInIdx];
+            (*newMetrics)[dstState] = pathMetrics[minPathEdgeInIdx];
 
             //Copy the traceback from the minimum path and shift left by k
             //Append the bits corresponding to the edges coming into this node
             //   - They are all the same and are the k LSbs of the node index
-            TRACEBACK_TYPE newTB = state->traceBackCur[minPathSrcNodeIdx];
+            TRACEBACK_TYPE newTB = (*state->traceBackCur)[minPathSrcNodeIdx];
             newTB = newTB << k;
             newTB |= edgeOut;
-            newTraceback[dstState] = newTB;
+            (*newTraceback)[dstState] = newTB;
 
             // printf("Min Path: %2d, Src Node: %2d Traceback: 0x%lx\n", minPathEdgeInIdx, minPathSrcNodeIdx, newTB);
         }
@@ -127,7 +141,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
             //Make decision on traceback
             //Find current minimum node:
             int minNodeIdx = argminNodeMetrics(state->nodeMetricsCur);
-            TRACEBACK_TYPE nodeTB = state->traceBackCur[minNodeIdx];
+            TRACEBACK_TYPE nodeTB = (*state->traceBackCur)[minNodeIdx];
 
             //Fetch the results the traceback length back
             //For example, lets say the Traceback length is 1 and k=2.  The traceback buffer does not need to be shifted
@@ -185,7 +199,7 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
         //Since the state of the encoder was forced back to 0, we can just take the traceback from node 0
         //TODO: Change if padding is later removed
 
-        TRACEBACK_TYPE tb = state->traceBackCur[0];
+        TRACEBACK_TYPE tb = (*state->traceBackCur)[0];
 
         // printf("Traceback: 0x%lx\n", tb>>(S*k));
 
@@ -220,22 +234,22 @@ int viterbiDecoderHard(viterbiHardState_t* state, uint8_t* codedSegments, uint8_
 }
 
 void resetViterbiDecoderHard(viterbiHardState_t* state){
-    state->nodeMetricsCur = state->nodeMetricsA;
-    state->nodeMetricsNext = state->nodeMetricsB;
+    state->nodeMetricsCur = &(state->nodeMetricsA);
+    state->nodeMetricsNext = &(state->nodeMetricsB);
 
-    state->traceBackCur = state->traceBackA;
-    state->traceBackNext = state->traceBackB;
+    state->traceBackCur = &(state->traceBackA);
+    state->traceBackNext = &(state->traceBackB);
 
-    state->nodeMetricsCur[STARTING_STATE] = 0;
+    (*state->nodeMetricsCur)[STARTING_STATE] = 0;
 
     //Need to set the node metrics so that the initial path is the only non
     METRIC_TYPE forceNot = NUM_STATES+1;
     for(int i = 0; i<NUM_STATES; i++){
         if(i != STARTING_STATE){
-            state->nodeMetricsCur[i] = forceNot;
+            (*state->nodeMetricsCur)[i] = forceNot;
         }
 
-        state->traceBackCur[i] = 0;
+        (*state->traceBackCur)[i] = 0;
     }
 
     state->iteration = 0;
@@ -243,7 +257,7 @@ void resetViterbiDecoderHard(viterbiHardState_t* state){
     state->decodeCarryOverCount = 0;
 }
 
-uint8_t calcHammingDist(uint8_t a, uint8_t b){
+uint8_t calcHammingDist(uint8_t a, uint8_t b, int bits){
     uint8_t bitDifferences = a^b;
 
     //Need to count the number of ones in the bit differences
@@ -256,11 +270,12 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
     //there is a popcount buitin: __builtin_popcount (https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html)
 
     uint8_t distance;
-    #if __has_builtin(__builtin_popcount)
+    #if __has_builtin(__builtin_popcount) && !defined(FORCE_NO_POPCNT_DECODER)
         distance = (uint8_t) __builtin_popcount(bitDifferences);
     #else
+        #warning popcnt not being used to compute Hamming Distance
         distance = 0;
-        for(int i = 0; i<8; i++){
+        for(int i = 0; i<bits; i++){
             distance += bitDifferences%2;
             bitDifferences = bitDifferences >> 1;
         }
@@ -269,90 +284,216 @@ uint8_t calcHammingDist(uint8_t a, uint8_t b){
     return distance;
 }
 
-int argminPathMetrics(METRIC_TYPE *metrics){
-    //There are 2^k paths to check
-    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+int argminPathMetrics(const METRIC_TYPE (*metrics)[POW2(k)]){
+    #if POW2(k) == 2
+        return argmin2(metrics);
+    #elif POW2(k) == 4
+        return argmin4(metrics);
+    #elif POW2(k) == 8
+        return argmin8(metrics);
+    #elif POW2(k) == 16
+        return argmin16(metrics);
+    #elif POW2(k) == 32
+        return argmin32(metrics);
+    #elif POW2(k) == 64
+        return argmin64(metrics);
+    #elif !defined(SIMPLE_MIN)
+        #warning using unspecialized argmin
+        //There are 2^k paths to check
+        //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
-    //TODO: Check performance
+        //TODO: Check performance
 
-    //Since the number of metrics is a power of 2, the number of tree steps is k
-    METRIC_TYPE workingInd[POW2(k)/2];
+        //Since the number of metrics is a power of 2, the number of tree steps is k
+        METRIC_TYPE workingInd[POW2(k)/2];
 
-    //Do the first pairwise 
-    for(int i = 0; i<POW2(k)/2; i++){
-        int indA = i*2;
-        int indB = i*2+1;
+        //Do the first pairwise 
+        for(int i = 0; i<POW2(k)/2; i++){
+            int indA = i*2;
+            int indB = i*2+1;
 
-        if(metrics[indA] <= metrics[indB]){
-            workingInd[i] = indA;
-        }else{
-            workingInd[i] = indB;
-        }
-    }
-
-    //Do the remaining 
-    for(int i = k-1; i>0; i--){
-        int numComparisons = POW2(i-1);
-        for(int j = 0; j<numComparisons; j++){
-            int indA = workingInd[j*2];
-            int indB = workingInd[j*2+1];
-
-            if(metrics[indA] <= metrics[indB]){
-                workingInd[j] = indA;
+            if((*metrics)[indA] <= (*metrics)[indB]){
+                workingInd[i] = indA;
             }else{
-                workingInd[j] = indB;
+                workingInd[i] = indB;
             }
         }
-    }
 
-    return workingInd[0];
+        //Do the remaining 
+        for(int i = k-1; i>0; i--){
+            int numComparisons = POW2(i-1);
+            for(int j = 0; j<numComparisons; j++){
+                int indA = workingInd[j*2];
+                int indB = workingInd[j*2+1];
+
+                if((*metrics)[indA] <= (*metrics)[indB]){
+                    workingInd[j] = indA;
+                }else{
+                    workingInd[j] = indB;
+                }
+            }
+        }
+
+        return workingInd[0];
+    #else
+        #warning using unspecialized argmin - simple
+        int minIdx = 0;
+        for(int i = 1; i<POW2(k); i++){
+            if((*metrics)[minIdx] < (*metrics)[i]){
+                minIdx = i;
+            }
+        }
+
+        return minIdx;
+    #endif
 }
 
-int argminNodeMetrics(METRIC_TYPE *metrics){
-    //There are 2^k paths to check
-    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+int argminNodeMetrics(const METRIC_TYPE (*metrics)[NUM_STATES]){
+    #if NUM_STATES == 2
+        return argmin2(metrics);
+    #elif NUM_STATES == 4
+        return argmin4(metrics);
+    #elif NUM_STATES == 8
+        return argmin8(metrics);
+    #elif NUM_STATES == 16
+        return argmin16(metrics);
+    #elif NUM_STATES == 32
+        return argmin32(metrics);
+    #elif NUM_STATES == 64
+        return argmin64(metrics);
+    #elif !defined(SIMPLE_MIN)
+        #warning using unspecialized argmin
+        //There are 2^k paths to check
+        //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
 
-    //TODO: Check performance
+        //TODO: Check performance
 
-    //Since the number of metrics is a power of 2, the number of tree steps is k
-    METRIC_TYPE workingInd[POW2(k*S)/2];
+        //Since the number of metrics is a power of 2, the number of tree steps is k
+        METRIC_TYPE workingInd[POW2(k*S)/2];
 
-    //Do the first pairwise 
-    for(int i = 0; i<POW2(k*S)/2; i++){
-        int indA = i*2;
-        int indB = i*2+1;
+        //Do the first pairwise 
+        for(int i = 0; i<POW2(k*S)/2; i++){
+            int indA = i*2;
+            int indB = i*2+1;
 
-        if(metrics[indA] <= metrics[indB]){
-            workingInd[i] = indA;
-        }else{
-            workingInd[i] = indB;
-        }
-    }
-
-    //Do the remaining 
-    for(int i = k*S-1; i>0; i--){
-        int numComparisons = POW2(i-1);
-        for(int j = 0; j<numComparisons; j++){
-            int indA = workingInd[j*2];
-            int indB = workingInd[j*2+1];
-
-            if(metrics[indA] <= metrics[indB]){
-                workingInd[j] = indA;
+            if((*metrics)[indA] <= (*metrics)[indB]){
+                workingInd[i] = indA;
             }else{
-                workingInd[j] = indB;
+                workingInd[i] = indB;
             }
         }
-    }
 
-    return workingInd[0];
+        //Do the remaining 
+        for(int i = k*S-1; i>0; i--){
+            int numComparisons = POW2(i-1);
+            for(int j = 0; j<numComparisons; j++){
+                int indA = workingInd[j*2];
+                int indB = workingInd[j*2+1];
+
+                if((*metrics)[indA] <= (*metrics)[indB]){
+                    workingInd[j] = indA;
+                }else{
+                    workingInd[j] = indB;
+                }
+            }
+        }
+
+        return workingInd[0];
+    #else
+        #warning using unspecialized argmin - simple
+        int minIdx = 0;
+        for(int i = 1; i<NUM_STATES; i++){
+            if((*metrics)[minIdx] < (*metrics)[i]){
+                minIdx = i;
+            }
+        }
+
+        return minIdx;
+    #endif
 }
 
 void swapViterbiArrays(viterbiHardState_t* state){
-    METRIC_TYPE* tmpMetric = state->nodeMetricsCur;
+    METRIC_TYPE (* restrict tmpMetric)[NUM_STATES] = state->nodeMetricsCur;
     state->nodeMetricsCur = state->nodeMetricsNext;
     state->nodeMetricsNext = tmpMetric;
 
-    TRACEBACK_TYPE* tmpTraceback = state->traceBackCur;
+    TRACEBACK_TYPE (* restrict tmpTraceback)[NUM_STATES] = state->traceBackCur;
     state->traceBackCur = state->traceBackNext;
     state->traceBackNext = tmpTraceback;
 }
+
+int argmin2(const METRIC_TYPE (*metrics)[2]){
+    if((*metrics)[0] <= (*metrics)[1]){
+        return 0;
+    }
+    return 1;
+}
+
+//TODO: Autogen for larger cases
+int argmin4(const METRIC_TYPE (*metrics)[4]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    //Stage 1, Reduce from 4 to 2
+    ARGMIN_FIRST_STAGE(stage1, (*metrics), 2)
+    //Stage 2, Reduce from 2 to 1
+    ARGMIN_LAST_STAGE(stage1, (*metrics))
+}
+
+int argmin8(const METRIC_TYPE (*metrics)[8]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    //Stage 1, Reduce from 8 to 4
+    ARGMIN_FIRST_STAGE(stage1, (*metrics), 4)
+    //Stage 2, Reduce from 4 to 2
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 2)
+    //Stage 3, Reduce from 2 to 1
+    ARGMIN_LAST_STAGE(stage2, (*metrics))
+}
+
+int argmin16(const METRIC_TYPE (*metrics)[16]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    //Stage 1, Reduce from 16 to 8
+    ARGMIN_FIRST_STAGE(stage1, (*metrics), 8)
+    //Stage 2, Reduce from 8 to 4
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 4)
+    //Stage 3, Reduce from 4 to 2
+    ARGMIN_INNER_STAGE(stage3, stage2, (*metrics), 2)
+    //Stage 4, Reduce from 2 to 1
+    ARGMIN_LAST_STAGE(stage3, (*metrics))
+}
+
+int argmin32(const METRIC_TYPE (*metrics)[32]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    //Stage 1, Reduce from 32 to 16
+    ARGMIN_FIRST_STAGE(stage1, (*metrics), 16)
+    //Stage 2, Reduce from 16 to 8
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 8)
+    //Stage 3, Reduce from 8 to 4
+    ARGMIN_INNER_STAGE(stage3, stage2, (*metrics), 4)
+    //Stage 4, Reduce from 4 to 2
+    ARGMIN_INNER_STAGE(stage4, stage3, (*metrics), 2)
+    //Stage 5, Reduce from 2 to 1
+    ARGMIN_LAST_STAGE(stage4, (*metrics))
+}
+
+int argmin64(const METRIC_TYPE (*metrics)[64]){
+    //Do this in a tree fashion - hopefully it gives the compiler opertunities to overlap computatation
+
+    //Stage 1, Reduce from 64 to 32
+    ARGMIN_FIRST_STAGE(stage1, (*metrics), 32)
+    //Stage 2, Reduce from 32 to 16
+    ARGMIN_INNER_STAGE(stage2, stage1, (*metrics), 16)
+    //Stage 3, Reduce from 16 to 8
+    ARGMIN_INNER_STAGE(stage3, stage2, (*metrics), 8)
+    //Stage 4, Reduce from 8 to 4
+    ARGMIN_INNER_STAGE(stage4, stage3, (*metrics), 4)
+    //Stage 5, Reduce from 4 to 2
+    ARGMIN_INNER_STAGE(stage5, stage4, (*metrics), 2)
+    //Stage 6, Reduce from 2 to 1
+    ARGMIN_LAST_STAGE(stage5, (*metrics))
+}
+
+//Include the specialized butterfly versions
+#include "viterbiDecoderButterflyk1.c"

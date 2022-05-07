@@ -15,7 +15,7 @@
 #include <time.h>
 #include <assert.h>
 
-#define ENCODE_PKT_BYTE_LEN (1024)
+#define ENCODE_PKT_BYTE_LEN (2048/8)
 #define PKTS (16)
 #define PRINT_INTERVAL (1)
 #define PRINT_CHECK_INTERVAL (100)
@@ -61,8 +61,8 @@ void* testThread(void* arg){
 
     //Initialize the Decoder
     viterbiHardState_t viterbiState;
-    resetViterbiDecoderHard(&viterbiState);
-    viterbiInit(&viterbiState);
+    VITERBI_RESET(&viterbiState);
+    VITERBI_INIT(&viterbiState);
     viterbiConfigCheck();
 
     uint8_t decodedBytes[ENCODE_PKT_BYTE_LEN];
@@ -76,7 +76,7 @@ void* testThread(void* arg){
     timespec_t lastPrint = startTime;
     int printCheck = 0;
     while(1){
-        int decodedBytesReturned = viterbiDecoderHard(&viterbiState, codedSegments[currentPkt], decodedBytes, 8*ENCODE_PKT_BYTE_LEN/k+S, true);
+        int decodedBytesReturned = VITERBI_DECODER_HARD(&viterbiState, codedSegments[currentPkt], decodedBytes, 8*ENCODE_PKT_BYTE_LEN/k+S, true);
         if(currentPkt<(PKTS-1)){
             currentPkt++;
         }else{
@@ -85,7 +85,7 @@ void* testThread(void* arg){
         bytesDecoded+=ENCODE_PKT_BYTE_LEN;
 
         //TODO: Remove
-        assert(decodedBytesReturned == ENCODE_PKT_BYTE_LEN);
+        // assert(decodedBytesReturned == ENCODE_PKT_BYTE_LEN);
 
         //Need to make sure that the encode is not optimized out
         asm volatile(""

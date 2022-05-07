@@ -6,8 +6,8 @@
 #include <assert.h>
 #include <math.h>
 
-#define ENCODE_PKT_BYTE_LEN (10240)
-#define PKTS (1000)
+#define ENCODE_PKT_BYTE_LEN (2048/8)
+#define PKTS (10000)
 #define PRINT_PERIOD (100)
 #define RAND_SEED (9865)
 //#define PRINT_PROGRESS
@@ -45,7 +45,7 @@ int corruptCodedArray(uint8_t* orig, uint8_t* corrupted, int len, double errorPr
 int bitErrors(uint8_t* a, uint8_t* b, int len){
     int errorCount = 0;
     for(int i = 0; i<len; i++){
-        int hammingDist = calcHammingDist(a[i], b[i]);
+        int hammingDist = calcHammingDist(a[i], b[i], 8);
         errorCount += hammingDist;
     }
 
@@ -94,7 +94,10 @@ int main(int argc, char* argv[]){
     //[1.104553e-03, 5.016878e-05, 1.711085e-06].
     double snr[] = {-5, -4, -3};
     double uncodedBer[] = {5.585640e-02, 3.716174e-02, 2.262231e-02};
-    double expectedCodedBer[] = {5.295410e-03, 5.421997e-04, 3.385010e-05};
+    //Traceback Length 5*K
+    // double expectedCodedBer[] = {5.295410e-03, 5.421997e-04, 3.385010e-05};
+    //Full Traceback Len
+    double expectedCodedBer[] = {4.765898e-03, 5.184082e-04, 3.499023e-05};
     int numConfigs = sizeof(snr)/sizeof(snr[0]);
 
     printf("** SNR is for 4 Samples Per Symbol **\n");
@@ -111,8 +114,8 @@ int main(int argc, char* argv[]){
 
         //Initialize the Decoder
         viterbiHardState_t viterbiState;
-        resetViterbiDecoderHard(&viterbiState);
-        viterbiInit(&viterbiState);
+        VITERBI_RESET(&viterbiState);
+        VITERBI_INIT(&viterbiState);
         viterbiConfigCheck();
 
         int64_t codedBitsSent = 0;
@@ -151,7 +154,7 @@ int main(int argc, char* argv[]){
 
             //Decode the signal
             uint8_t decodedBytes[ENCODE_PKT_BYTE_LEN];
-            int decodedBytesReturned = viterbiDecoderHard(&viterbiState, corruptedCodedSegments, decodedBytes, 8*ENCODE_PKT_BYTE_LEN/k+S, true);
+            int decodedBytesReturned = VITERBI_DECODER_HARD(&viterbiState, corruptedCodedSegments, decodedBytes, 8*ENCODE_PKT_BYTE_LEN/k+S, true);
             //Can leave in for sanity check
             assert(decodedBytesReturned == ENCODE_PKT_BYTE_LEN);
             decodedBitsRecieved+=decodedBytesReturned*8;

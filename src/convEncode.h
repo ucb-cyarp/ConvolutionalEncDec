@@ -5,6 +5,18 @@
 #include "convHelpers.h"
 #include <stdbool.h>
 
+#if k*K <= 8
+    #define TAPPED_DELAY_TYPE uint8_t
+#elif k*K <= 16
+    #define TAPPED_DELAY_TYPE uint16_t
+#elif k*K <= 32
+    #define TAPPED_DELAY_TYPE uint32_t
+#elif k*K <= 64
+    #define TAPPED_DELAY_TYPE uint64_t
+#else
+    #error Only constraint lengths (k*K) <=64 are currently supported
+#endif
+
 //TODO: Create State which includes a circular buffer and the code.
 //TODO: Use circular buffer and dot product techniques from Laminar here
 
@@ -15,50 +27,24 @@
 //TODO: Implement encoder init and reset
 
 typedef struct{
-    //Circular buffer will be double the length technicall required.  This allows us to always
-    //present stride 1 access to the dot product operations.  This requires redundant writes
-    //to the two halfs of the buffer.
-    //Because this is a tapped delay line and not a FIFO, only one cursor index is maintained.
-    //The buffer currently has the most recent element first with the cursor decrementing
-    uint8_t tappedDelay[2*k*K]; //This includes the full K
-    int tappedDelayCursor;
+    TAPPED_DELAY_TYPE tappedDelay;
     
-    //The polynomials are stored as byte arrays, one array per polynomial
-    //In the C semantics, a single row of a 2D array is stored contiguously (Row Major).
-    //ie, array[i][j] is equivalent to *(array+(i*b)+j) where b is the number of columns
-    
-    //As such each polynomial is a row in this 2D array with the number of colums being the
-    //number of bits in the shift register
-    uint8_t polynomials[n][k*K]; //This includes the full K
+    //The polynomials are stored in little endian bit order.
+    //The LSb corresponds to the current input
+    TAPPED_DELAY_TYPE polynomials[n]; //This includes the full K
 
     uint8_t remainingUncoded; //Used for cases when 8%k != 0
     uint8_t remainingUncodedCount; //Details the number of bits that are left in remainingUncoded
 } convEncoderState_t;
 
-void resetConvEncoder(convEncoderState_t* state);
+TAPPED_DELAY_TYPE bitReverseGenerator(TAPPED_DELAY_TYPE packed);
 
-/**
- * @brief Initializes the tapped delay with the requested state
- * @param tappedDelayStateRequested the requested state (little endian)
- * 
- * TODO: Change if big endian tapped delay operation used in the future
- */
-void setConvEncoderState(convEncoderState_t* state, int tappedDelayStateRequested);
+void resetConvEncoder(convEncoderState_t* state);
 
 /**
  * @brief Initializes the polynomial arrays in the convolutional encoder state
  */
 void initConvEncoder(convEncoderState_t* state);
-
-/**
- * @brief Inserts a new input into the tappedDelay but does not adjust the cursor
- */
-void tappedDelayInsert(uint8_t* tappedDelay, int tappedDelayCursor, uint8_t input);
-
-/**
- * @brief Decements the cursor and wraps it arround as nessisary
- */
-void tappedDelayStep(int* tappedDelayCursor);
 
 /**
  * @brief Convolutionally encode packed data and emits coded segments (k bits each).  The data is sent in big endian order (the MSb is encoded first).
